@@ -105,6 +105,7 @@ def print_matrix(matrix, decimals=6):
     for row in matrix:
         print("  ".join(f"{val:.{decimals}f}" for val in row))
 
+# xxxxxxxxx
 # Main Simulation
 def main():
     nx, ny = 4, 4
