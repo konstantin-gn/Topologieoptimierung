@@ -99,16 +99,14 @@ def build_grid(nx: int, ny: int, k: float = 1.0):
 
     return K_global, elements
 
-
-# Matrix Ausgabe
+# Matrix Ausgabe allgemein
 def print_matrix(matrix, decimals=6):
     for row in matrix:
         print("  ".join(f"{val:.{decimals}f}" for val in row))
 
-# xxxxxxxxx
 # Main Simulation
 def main():
-    nx, ny = 4, 4
+    nx, ny = 10, 4
     K, elements = build_grid(nx, ny)
 
     n_nodes = nx * ny
@@ -118,11 +116,15 @@ def main():
     load_node = n_nodes - 1  # rechte obere Ecke -- Index des rechten oberen Knotens (Nummerierung geht von links unten nach rechts oben zeilenweise)
     F[2 * load_node] = 10.0  # x-Richtung der Kraft
 
-    # Linke Seite fixieren
     u_fixed_idx = []
-    for iy in range(ny):
-        node = iy * nx
-        u_fixed_idx += [2*node, 2*node+1]
+
+    # Festlager unten links
+    node_fixedbearing = 0
+    u_fixed_idx.extend([2*node_fixedbearing, 2*node_fixedbearing + 1])
+
+    # Loslager unten rechts (nur y-Richtung fixieren)
+    node_losebearing = nx - 1
+    u_fixed_idx.append(2*node_losebearing + 1)
 
     u = solve(K, F, u_fixed_idx)
     if u is None:
