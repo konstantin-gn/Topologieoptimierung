@@ -1,178 +1,186 @@
 import numpy as np
 import numpy.typing as npt
 
-# Solver
-def solve(K: npt.NDArray[np.float64],
-          F: npt.NDArray[np.float64],
-          u_fixed_idx: list[int],
-          eps=1e-9) -> npt.NDArray[np.float64] | None:
 
-    K_mod = K.copy()
-    F_mod = F.copy()
+class LinearSolver:
+    def __init__(self, eps: float = 1e-9):
+        self.eps = eps
 
-    for d in u_fixed_idx:
-        K_mod[d, :] = 0.0
-        K_mod[:, d] = 0.0
-        K_mod[d, d] = 1.0
-        F_mod[d] = 0.0
+    def solve(self,
+              K: npt.NDArray[np.float64],
+              F: npt.NDArray[np.float64],
+              u_fixed_idx: list[int]) -> npt.NDArray[np.float64] | None:
 
-    try:
-        return np.linalg.solve(K_mod, F_mod)
-    except np.linalg.LinAlgError:
-        K_mod += np.eye(K.shape[0]) * eps
+        K_mod = K.copy()
+        F_mod = F.copy()
+
+        for d in u_fixed_idx:
+            K_mod[d, :] = 0.0
+            K_mod[:, d] = 0.0
+            K_mod[d, d] = 1.0
+            F_mod[d] = 0.0
+
         try:
             return np.linalg.solve(K_mod, F_mod)
         except np.linalg.LinAlgError:
-            return None
+            K_mod += np.eye(K.shape[0]) * self.eps
+            try:
+                return np.linalg.solve(K_mod, F_mod)
+            except np.linalg.LinAlgError:
+                return None
+            
 
-# Grid Builder mit diagonalen Federn
-def build_grid(nx: int, ny: int, k: float = 1.0):
+class MakeGrid:
+    def __init__(self, nx: int, ny: int, k: float = 1.0):
+        self.nx = nx
+        self.ny = ny
+        self.k = k
 
-    n_nodes = nx * ny
-    ndof = 2 * n_nodes
-    K_global = np.zeros((ndof, ndof))
-    elements = []
+        self.n_nodes = nx * ny
+        self.ndof = 2 * self.n_nodes
 
-    def node_id(ix, iy):
-        return iy * nx + ix
+        self.K_global = np.zeros((self.ndof, self.ndof))
+        self.elements = []
 
-    def element_dofs(i, j):
+        self._build_grid()
+
+    def node_id(self, ix, iy):
+        return (self.ny - 1 - iy) * self.nx + ix
+
+    def element_dofs(self, i, j):
         return [2*i, 2*i+1, 2*j, 2*j+1]
 
-    K_local = k * np.array([[1, -1], [-1, 1]])
+    def _add_element(self, i, j, direction):
+        K_local = self.k * np.array([[1, -1], [-1, 1]])
+        e_n = direction / np.linalg.norm(direction)
+        O = np.outer(e_n, e_n)
+        K_elem = np.kron(K_local, O)
 
-    # Horizontale Elemente
-    for iy in range(ny):
-        for ix in range(nx - 1):
-            i = node_id(ix, iy)
-            j = node_id(ix + 1, iy)
-            e_n = np.array([1.0, 0.0])
-            O = np.outer(e_n, e_n)
-            K_elem = np.kron(K_local, O)
-            dofs = element_dofs(i, j)
-            for a in range(4):
-                for b in range(4):
-                    K_global[dofs[a], dofs[b]] += K_elem[a, b]
-            elements.append((i, j, K_elem, dofs))
+        dofs = self.element_dofs(i, j)
 
-    # Vertikale Elemente
-    for iy in range(ny - 1):
-        for ix in range(nx):
-            i = node_id(ix, iy)
-            j = node_id(ix, iy + 1)
-            e_n = np.array([0.0, 1.0])
-            O = np.outer(e_n, e_n)
-            K_elem = np.kron(K_local, O)
-            dofs = element_dofs(i, j)
-            for a in range(4):
-                for b in range(4):
-                    K_global[dofs[a], dofs[b]] += K_elem[a, b]
-            elements.append((i, j, K_elem, dofs))
+        for a in range(4):
+            for b in range(4):
+                self.K_global[dofs[a], dofs[b]] += K_elem[a, b]
 
-    # Diagonale Elemente (oben links → unten rechts)
-    for iy in range(ny - 1):
-        for ix in range(nx - 1):
-            i = node_id(ix, iy)
-            j = node_id(ix + 1, iy + 1)
-            e_n = np.array([1.0, 1.0]) / np.sqrt(2)
-            O = np.outer(e_n, e_n)
-            K_elem = np.kron(K_local, O)
-            dofs = element_dofs(i, j)
-            for a in range(4):
-                for b in range(4):
-                    K_global[dofs[a], dofs[b]] += K_elem[a, b]
-            elements.append((i, j, K_elem, dofs))
+        self.elements.append((i, j, K_elem, dofs))
 
-    # Diagonale Elemente (oben rechts → unten links)
-    for iy in range(ny - 1):
-        for ix in range(1, nx):
-            i = node_id(ix, iy)
-            j = node_id(ix - 1, iy + 1)
-            e_n = np.array([-1.0, 1.0]) / np.sqrt(2)
-            O = np.outer(e_n, e_n)
-            K_elem = np.kron(K_local, O)
-            dofs = element_dofs(i, j)
-            for a in range(4):
-                for b in range(4):
-                    K_global[dofs[a], dofs[b]] += K_elem[a, b]
-            elements.append((i, j, K_elem, dofs))
+    def _build_grid(self):
+        # Horizontal
+        for iy in range(self.ny):
+            for ix in range(self.nx - 1):
+                i = self.node_id(ix, iy)
+                j = self.node_id(ix + 1, iy)
+                self._add_element(i, j, np.array([1.0, 0.0]))
 
-    return K_global, elements
+        # Vertical
+        for iy in range(self.ny - 1):
+            for ix in range(self.nx):
+                i = self.node_id(ix, iy)
+                j = self.node_id(ix, iy + 1)
+                self._add_element(i, j, np.array([0.0, 1.0]))
 
-# Matrix Ausgabe allgemein
-def print_matrix(matrix, decimals=6):
-    for row in matrix:
-        print("  ".join(f"{val:.{decimals}f}" for val in row))
+        # Diagonal ↘
+        for iy in range(self.ny - 1):
+            for ix in range(self.nx - 1):
+                i = self.node_id(ix, iy)
+                j = self.node_id(ix + 1, iy + 1)
+                self._add_element(i, j, np.array([1.0, 1.0]))
 
-# Main Simulation
-def main():
-    nx, ny = 10, 4
-    K, elements = build_grid(nx, ny)
+        # Diagonal ↙
+        for iy in range(self.ny - 1):
+            for ix in range(1, self.nx):
+                i = self.node_id(ix, iy)
+                j = self.node_id(ix - 1, iy + 1)
+                self._add_element(i, j, np.array([-1.0, 1.0]))
 
-    n_nodes = nx * ny
-    ndof = 2 * n_nodes
 
-    F = np.zeros(ndof)       # Lastvektor
-    load_node = n_nodes - 1  # rechte obere Ecke -- Index des rechten oberen Knotens (Nummerierung geht von links unten nach rechts oben zeilenweise)
-    F[2 * load_node] = 10.0  # x-Richtung der Kraft
+class UserInput:
+    def __init__(self):
+        self.nx: int = 10
+        self.ny: int = 4
+        self.target_mass_frac: float = 0.4
 
-    u_fixed_idx = []
+    def get_input(self):
+        print("Bitte die Größe des Balkens eingeben (1 mm = 1 Knoten)")
 
-    # Festlager unten links
-    node_fixedbearing = 0
-    u_fixed_idx.extend([2*node_fixedbearing, 2*node_fixedbearing + 1])
+        while True:
+            try:
+                nx = int(input("Länge (in Knoten): "))
+                ny = int(input("Höhe (in Knoten): "))
+                frac = float(input("Optimierungsgrad (Prozent der verbleibenden Masse, z.B. 40): "))
+                if nx <= 0 or ny <= 0 or not (0 < frac <= 100):
+                    raise ValueError
+                self.nx = nx
+                self.ny = ny
+                self.target_mass_frac = frac / 100
+                break
+            except ValueError:
+                print("Ungültige Eingabe. Bitte ganze positive Zahlen für Größe und Prozent zwischen 1-100 eingeben.")
 
-    # Loslager unten rechts (nur y-Richtung fixieren)
-    node_losebearing = nx - 1
-    u_fixed_idx.append(2*node_losebearing + 1)
 
-    u = solve(K, F, u_fixed_idx)
-    if u is None:
-        print("System could not be solved.")
-        return
+class Simulation:
+    def __init__(self, nx: int, ny: int, target_mass_frac: float):
+        self.grid = MakeGrid(nx, ny)
+        self.solver = LinearSolver()
+        self.target_mass_frac = target_mass_frac
 
-    # Gesamtenergie
-    total_energy = 0.5 * u.T @ K @ u
-    print("Total energy:", total_energy)
+    def run(self):
+        F = np.zeros(self.grid.ndof)
 
-    # Elementenergien
-    element_energy_list = []
-    for (i, j, K_elem, dofs) in elements:
-        u_e = u[dofs]
-        c_e = 0.5 * u_e.T @ K_elem @ u_e
-        element_energy_list.append((i, j, c_e))
+        # Kraft auf das rechte untere Knoten
+        load_node = self.grid.node_id(self.grid.nx-1, 0)
+        F[2 * load_node] = 10.0
 
-    # Knotenenergien
-    node_energy = np.zeros(n_nodes)
-    for (i, j, c_e) in element_energy_list:
-        node_energy[i] += 0.5 * c_e
-        node_energy[j] += 0.5 * c_e
+        # Randbedingungen
+        u_fixed_idx = []
+        node_fixed = self.grid.node_id(0, self.grid.ny-1)  # Festlager unten links
+        u_fixed_idx.extend([2*node_fixed, 2*node_fixed + 1])
 
-    # Node-Energie als 2D-Matrix, obere Reihe oben
-    node_energy_matrix = node_energy.reshape((ny, nx))[::-1, :]
+        node_lose = self.grid.node_id(self.grid.nx-1, self.grid.ny-1)  # Loslager unten rechts
+        u_fixed_idx.append(2*node_lose + 1)
 
-    # Horizontale und vertikale Elementenergien als Raster
-    element_energy_h = np.zeros((ny, nx-1))
-    element_energy_v = np.zeros((ny-1, nx))
-    for (i, j, c_e) in element_energy_list:
-        xi, yi = i % nx, i // nx
-        xj, yj = j % nx, j // nx
-        if yi == yj:  # horizontal
-            element_energy_h[yi, min(xi, xj)] = c_e
-        elif xi == xj:  # vertikal
-            element_energy_v[min(yi, yj), xi] = c_e
-    element_energy_h = element_energy_h[::-1, :]
-    element_energy_v = element_energy_v[::-1, :]
+        u = self.solver.solve(self.grid.K_global, F, u_fixed_idx)
+        if u is None:
+            print("System konnte nicht gelöst werden.")
+            return
 
-    # Ausgabe
-    print("\nNode energy matrix (grid form, top row = top of grid):")
-    print_matrix(node_energy_matrix)
+        total_energy = 0.5 * u.T @ self.grid.K_global @ u
+        print("Total energy:", total_energy)
 
-    print("\nHorizontal element energy (grid form, top row = top of grid):")
-    print_matrix(element_energy_h)
+        node_energy = self._compute_node_energy(u)
 
-    print("\nVertical element energy (grid form, top row = top of grid):")
-    print_matrix(element_energy_v)
+        # Optimierungsgrad
+        n_nodes_total = self.grid.n_nodes
+        n_nodes_target = int(n_nodes_total * self.target_mass_frac)
+        top_nodes_idx = np.argsort(-node_energy)[:n_nodes_target]
+
+        print(f"\nOptimierungsziel: {self.target_mass_frac*100:.0f}% der Ausgangsknoten")
+        print("Knoten, die im optimierten Balken verbleiben (höchste Energie):")
+        print(top_nodes_idx)
+
+    def _compute_node_energy(self, u):
+        node_energy = np.zeros(self.grid.n_nodes)
+
+        for (i, j, K_elem, dofs) in self.grid.elements:
+            u_e = u[dofs]
+            c_e = 0.5 * u_e.T @ K_elem @ u_e
+            node_energy[i] += 0.5 * c_e
+            node_energy[j] += 0.5 * c_e
+
+        node_energy_matrix = node_energy.reshape((self.grid.ny, self.grid.nx))
+        print("\nNode energy matrix:")
+        for row in node_energy_matrix:
+            print("  ".join(f"{val:.6f}" for val in row))
+
+        return node_energy
 
 if __name__ == "__main__":
-    main()
+    user_input = UserInput()
+    user_input.get_input()
+
+    sim = Simulation(
+        nx=user_input.nx,
+        ny=user_input.ny,
+        target_mass_frac=user_input.target_mass_frac
+    )
+    sim.run()
