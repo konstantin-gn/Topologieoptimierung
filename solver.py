@@ -3,40 +3,27 @@ import numpy.typing as npt
 
 
 class LinearSolver:
-    """
-    Reiner numerischer Solver für lineare Gleichungssysteme:
-        K u = F
+    # Konstruktor mit Regularisierungsparameter
+    def __init__(self, eps: float = 1e-9):
+        self.eps = eps  # Kleine Diagonalerhöhung zur Stabilisierung
 
-    Der Solver kennt keine Struktur, keine Elemente und keine UI.
-    """
-
-    def __init__(self, eps: float = 1e-9) -> None:
-        """
-        eps : Regularisierungsparameter für singuläre Matrizen.
-        """
-        self.eps = eps
-
+    # Löst Ku = F unter Dirichlet-Randbedingungen
     def solve(
         self,
         K: npt.NDArray[np.float64],
         F: npt.NDArray[np.float64],
-        u_fixed_idx: list[int],
+        u_fixed_idx: list[int]
     ) -> npt.NDArray[np.float64] | None:
-        """
-        Löst Ku = F unter Berücksichtigung von Dirichlet-Randbedingungen.
-        """
 
-        # Sicherheitsprüfungen
-        assert K.shape[0] == K.shape[1], \
-            "Stiffness matrix K must be square."
-        assert K.shape[0] == F.shape[0], \
-            "Force vector F must have the same size as K."
+        # Sicherheitsprüfung
+        assert K.shape[0] == K.shape[1], "K muss quadratisch sein"
+        assert K.shape[0] == F.shape[0], "Dimension von K und F muss übereinstimmen"
 
-        # Kopien erzeugen, damit Originalmatrix unverändert bleibt
+        # Kopien erzeugen, damit Originalsystem nicht verändert wird
         K_mod = K.copy()
         F_mod = F.copy()
 
-        # Randbedingungen einbauen
+        # Dirichlet-Randbedingungen einbauen
         for d in u_fixed_idx:
             K_mod[d, :] = 0.0
             K_mod[:, d] = 0.0
@@ -47,8 +34,8 @@ class LinearSolver:
         try:
             return np.linalg.solve(K_mod, F_mod)
 
+        # Falls Matrix singulär ist → Regularisierung
         except np.linalg.LinAlgError:
-            # Regularisierung falls singulär
             K_mod += np.eye(K_mod.shape[0]) * self.eps
             try:
                 return np.linalg.solve(K_mod, F_mod)
