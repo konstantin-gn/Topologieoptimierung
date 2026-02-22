@@ -45,7 +45,7 @@ class MakeGrid:
         self._build_grid()
 
     def node_id(self, ix, iy):
-        return (self.ny - 1 - iy) * self.nx + ix
+        return iy * self.nx + ix
 
     def element_dofs(self, i, j):
         return [2*i, 2*i+1, 2*j, 2*j+1]
