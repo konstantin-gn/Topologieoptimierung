@@ -166,21 +166,20 @@ class Simulation:
         self.load_iy = load_iy
         self.Fx = Fx
         self.Fy = Fy
+        self.optim_steps: list[set[int]] = []  # speichert Knoten in jedem Schritt
 
     def run(self):
         F = np.zeros(self.grid.ndof)
-
         load_node = self.grid.node_id(self.load_ix, self.load_iy)
-
         F[2 * load_node]     = self.Fx   # x-Richtung
         F[2 * load_node + 1] = self.Fy   # y-Richtung
 
         # Randbedingungen
         u_fixed_idx = []
-        node_fixed = self.grid.node_id(0, self.grid.ny - 1)                # Festlager unten links (vorerst)
+        node_fixed = self.grid.node_id(0, self.grid.ny - 1)                # Festlager unten links
         u_fixed_idx.extend([2 * node_fixed, 2 * node_fixed + 1])
 
-        node_lose = self.grid.node_id(self.grid.nx - 1, self.grid.ny - 1)  # Loslager unten rechts (vorerst)
+        node_lose = self.grid.node_id(self.grid.nx - 1, self.grid.ny - 1)  # Loslager unten rechts
         u_fixed_idx.append(2 * node_lose + 1)
 
         u = self.solver.solve(self.grid.K_global, F, u_fixed_idx)
@@ -191,42 +190,69 @@ class Simulation:
         total_energy = 0.5 * u.T @ self.grid.K_global @ u
         print("Total energy:", total_energy)
 
+        # Knotenenergien berechnen
         node_energy = self._compute_node_energy(u)
 
-        n_nodes_total = self.grid.n_nodes
-        n_nodes_target = int(n_nodes_total * self.target_mass_frac)
+        # Berechne Elementenergie
+        element_energy = np.zeros(len(self.grid.elements))
+        for idx, (i, j, K_elem, dofs) in enumerate(self.grid.elements):
+            u_e = u[dofs]
+            c_e = 0.5 * u_e.T @ K_elem @ u_e
+            element_energy[idx] = c_e
 
-        remaining_nodes = set(range(self.grid.n_nodes))
-        essential_nodes = {load_node, node_fixed, node_lose}
+        # Ziel: Anzahl der zu behaltenden Elemente
+        n_elements_target = int(len(self.grid.elements) * self.target_mass_frac)
+        remaining_elements = set(range(len(self.grid.elements)))
 
-        sorted_nodes = np.argsort(node_energy)  # kleinste zuerst
+        # Optimierungsschritte initialisieren
+        self.optim_steps: list[set[int]] = []
+        # Anfangszustand: alle Knoten
+        all_nodes = set(range(self.grid.n_nodes))
+        self.optim_steps.append(all_nodes.copy())
 
-        for node in sorted_nodes:
+        # Sortiere Elemente nach Energie (kleinste zuerst)
+        sorted_elements = np.argsort(element_energy)
 
-            if node in essential_nodes:
-                continue
-
-            if len(remaining_nodes) <= n_nodes_target:
+        for e_idx in sorted_elements:
+            if len(remaining_elements) <= n_elements_target:
                 break
+            trial_elements = remaining_elements - {e_idx}
 
-            trial_nodes = remaining_nodes - {node}
+            # Berechne verbleibende Knoten für diesen Trial-Schritt
+            remaining_nodes_trial = set()
+            for idx in trial_elements:
+                i, j, _, _ = self.grid.elements[idx]
+                remaining_nodes_trial.add(i)
+                remaining_nodes_trial.add(j)
 
-            if self._is_connected(trial_nodes):
-                remaining_nodes.remove(node)
+            # Prüfe, ob die Struktur noch verbunden ist
+            if self._is_connected(remaining_nodes_trial):
+                remaining_elements.remove(e_idx)
+                # Schritt speichern: aktuelle Knoten nach Entfernung
+                self.optim_steps.append(remaining_nodes_trial.copy())
 
-        print(
-            f"\nOptimierungsziel: {self.target_mass_frac*100:.0f}% der Ausgangsknoten"
-        )
-        print("Knoten, die im optimierten Balken verbleiben:")
-        print(sorted(list(remaining_nodes)))
+        # Speichere die endgültigen Ergebnisse
+        self.remaining_elements = remaining_elements
 
-        # ---- Binäre Topologie-Matrix erzeugen ----
+        # Alle verbleibenden Knoten aus den verbleibenden Elementen ableiten
+        remaining_nodes = set()
+        for idx in remaining_elements:
+            i, j, _, _ = self.grid.elements[idx]
+            remaining_nodes.add(i)
+            remaining_nodes.add(j)
+
+        self.remaining_nodes = remaining_nodes
+        self.u = u
+
         topology_vector = np.zeros(self.grid.n_nodes)
-
         for node in remaining_nodes:
             topology_vector[node] = 1
 
         topology_matrix = topology_vector.reshape((self.grid.ny, self.grid.nx))
+
+        print(f"\nOptimierungsziel: {self.target_mass_frac*100:.0f}% der Ausgangsknoten")
+        print("Knoten, die im optimierten Balken verbleiben:")
+        print(sorted(list(remaining_nodes)))
 
         print("\nTopologie-Matrix (1 = behalten, 0 = gelöscht):")
         for row in topology_matrix:
@@ -249,8 +275,10 @@ class Simulation:
         return node_energy
 
     def _is_connected(self, allowed_nodes):
+        import networkx as nx
 
-        valid_edges = [                  # gültige Kanten bestimmen
+        # gültige Kanten (nur Knoten in allowed_nodes)
+        valid_edges = [
             (i, j)
             for (i, j) in self.grid.edge_list
             if i in allowed_nodes and j in allowed_nodes
@@ -259,37 +287,54 @@ class Simulation:
         if len(valid_edges) == 0:
             return False
 
-        n = len(allowed_nodes)
-        node_list = list(allowed_nodes)
-        node_index = {node: idx for idx, node in enumerate(node_list)}
+        G = nx.Graph()
+        G.add_nodes_from(allowed_nodes)
+        G.add_edges_from(valid_edges)
 
-        B = np.zeros((n, len(valid_edges)))
+        return nx.is_connected(G)
+    
+    def plot_structure(self, u=None, scale=1.0, remaining_nodes=None):
+        import matplotlib.pyplot as plt
 
-        for e, (i, j) in enumerate(valid_edges):
-            B[node_index[i], e] = 1
-            B[node_index[j], e] = -1
+        fig, ax = plt.subplots()
 
-        L = B @ B.T
+        for (i, j) in self.grid.edge_list:
+            if remaining_nodes is not None:
+                if i not in remaining_nodes or j not in remaining_nodes:
+                    continue
 
-        eigvals = np.linalg.eigvalsh(L)
+            x1 = i % self.grid.nx
+            y1 = i // self.grid.nx
+            x2 = j % self.grid.nx
+            y2 = j // self.grid.nx
 
-        tol = 1e-8
-        n_zero = np.sum(eigvals < tol)
+            if u is not None:
+                x1 += scale * u[2*i]
+                y1 += scale * u[2*i+1]
+                x2 += scale * u[2*j]
+                y2 += scale * u[2*j+1]
 
-        return n_zero == 1
+            ax.plot([x1, x2], [y1, y2], "k-")
 
+        ax.set_aspect("equal")
+        ax.invert_yaxis()
+        ax.set_title("Struktur")
 
-if __name__ == "__main__":
-    user_input = UserInput()
-    user_input.get_input()
+        return fig
 
-    sim = Simulation(
-        nx=user_input.nx,
-        ny=user_input.ny,
-        target_mass_frac=user_input.target_mass_frac,
-        load_ix=user_input.load_ix,
-        load_iy=user_input.load_iy,
-        Fx=user_input.Fx,
-        Fy=user_input.Fy,
-    )
-    sim.run()
+    def plot_nodes(self, remaining_nodes, u=None, scale=1.0):
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        
+        for node in remaining_nodes:
+            x = node % self.grid.nx
+            y = node // self.grid.nx
+            if u is not None:
+                x += scale * u[2*node]
+                y += scale * u[2*node+1]
+            ax.scatter(x, y, color="black", s=30)  # Punktgröße anpassen
+
+        ax.set_aspect("equal")
+        ax.invert_yaxis()
+        ax.set_title("Knotenstruktur")
+        return fig
