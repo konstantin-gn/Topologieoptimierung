@@ -113,6 +113,10 @@ class UserInput:
         self.nx: int = 10
         self.ny: int = 4
         self.target_mass_frac: float = 0.4
+        self.load_ix: int = 0
+        self.load_iy: int = 0
+        self.Fx: float = 0.0
+        self.Fy: float = 0.0
 
     def get_input(self):
         print("Bitte die Größe des Balkens eingeben (Anzahl an Knoten)")
@@ -126,6 +130,21 @@ class UserInput:
                         "Optimierungsgrad (Prozent der verbleibenden Masse, z.B. 40): "
                     )
                 )
+                print("\nKraftangriffspunkt eingeben:")
+
+                ix = int(input(f"Knoten x (0 bis {nx-1}): "))
+                iy = int(input(f"Knoten y (0 bis {ny-1}): "))
+
+                Fx = float(input("Kraft in x-Richtung (positiv=rechts, negativ=links): "))
+                Fy = float(input("Kraft in y-Richtung (positiv=unten, negativ=oben): "))
+
+                if not (0 <= ix < nx and 0 <= iy < ny):
+                    raise ValueError
+
+                self.load_ix = ix
+                self.load_iy = iy
+                self.Fx = Fx
+                self.Fy = Fy
                 if nx <= 0 or ny <= 0 or not (0 < frac <= 100):
                     raise ValueError
                 self.nx = nx
@@ -139,17 +158,22 @@ class UserInput:
 
 
 class Simulation:
-    def __init__(self, nx: int, ny: int, target_mass_frac: float):
+    def __init__(self, nx, ny, target_mass_frac, load_ix, load_iy, Fx, Fy):
         self.grid   = MakeGrid(nx, ny)
         self.solver = LinearSolver()
         self.target_mass_frac = target_mass_frac
+        self.load_ix = load_ix
+        self.load_iy = load_iy
+        self.Fx = Fx
+        self.Fy = Fy
 
     def run(self):
         F = np.zeros(self.grid.ndof)
 
-        # Kraft auf rechten oberen Knoten (vorerst)
-        load_node = self.grid.node_id(self.grid.nx - 1, 0)
-        F[2 * load_node] = 10.0
+        load_node = self.grid.node_id(self.load_ix, self.load_iy)
+
+        F[2 * load_node]     = self.Fx   # x-Richtung
+        F[2 * load_node + 1] = self.Fy   # y-Richtung
 
         # Randbedingungen
         u_fixed_idx = []
@@ -226,8 +250,7 @@ class Simulation:
 
     def _is_connected(self, allowed_nodes):
 
-        # gültige Kanten bestimmen
-        valid_edges = [
+        valid_edges = [                  # gültige Kanten bestimmen
             (i, j)
             for (i, j) in self.grid.edge_list
             if i in allowed_nodes and j in allowed_nodes
@@ -261,6 +284,12 @@ if __name__ == "__main__":
     user_input.get_input()
 
     sim = Simulation(
-        nx=user_input.nx, ny=user_input.ny, target_mass_frac=user_input.target_mass_frac
+        nx=user_input.nx,
+        ny=user_input.ny,
+        target_mass_frac=user_input.target_mass_frac,
+        load_ix=user_input.load_ix,
+        load_iy=user_input.load_iy,
+        Fx=user_input.Fx,
+        Fy=user_input.Fy,
     )
     sim.run()
