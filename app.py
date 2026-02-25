@@ -44,18 +44,18 @@ if st.session_state.ran and st.session_state.sim is not None:
 
     sim = st.session_state.sim
 
-    st.subheader("Originalstruktur")
+    # Einheitliches Nodeset für "Original" (alle Knoten)
+    all_nodes = set(range(sim.grid.n_nodes))
 
-    # ORIGINALSTRUKTUR (keine Verformung)
+    st.subheader("Originalstruktur")
     fig_original = sim.plot_structure(
         u=None,
-        remaining_nodes=sim.optim_steps[0] if len(sim.optim_steps) > 0 else sim.remaining_nodes
+        remaining_nodes=all_nodes,
+        scale=1.0
     )
-
     st.pyplot(fig_original)
 
-
-    # OPTIMIERUNGSSCHRITTE
+    # Optimierungsschritte 
     st.subheader("Optimierungs-Schritte")
 
     if hasattr(sim, "optim_steps") and len(sim.optim_steps) > 0:
@@ -72,18 +72,18 @@ if st.session_state.ran and st.session_state.sim is not None:
 
         remaining_nodes_step = sim.optim_steps[step]
 
-        fig_step = sim.plot_nodes(
-            remaining_nodes_step,
-            u=None
+        # Einzelne Schritte plotten 
+        fig_step = sim.plot_structure(
+            u=None,
+            remaining_nodes=remaining_nodes_step,
+            scale=1.0
         )
-
         st.pyplot(fig_step)
 
     else:
         st.write("Keine Optimierungsschritte vorhanden.")
 
-    
-    # VERFORMTE STRUKTUR
+    # VERFORMTE STRUKTUR 
     st.subheader("Verformte Struktur")
 
     scale = st.slider(
@@ -95,9 +95,8 @@ if st.session_state.ran and st.session_state.sim is not None:
     )
 
     fig_deformed = sim.plot_structure(
-        u=sim.u,                     # <-- Verschiebung übergeben
+        u=sim.u,
         remaining_nodes=sim.remaining_nodes,
-        scale=scale                  # <-- Skalierung
+        scale=scale
     )
-
     st.pyplot(fig_deformed)
