@@ -20,7 +20,7 @@ class LinearSolver:
             K_mod[d, :] = 0.0
             K_mod[:, d] = 0.0
             K_mod[d, d] = 1.0
-            F_mod[d] = 0.0
+            F_mod[d]    = 0.0
 
         try:
             return np.linalg.solve(K_mod, F_mod)
@@ -39,11 +39,11 @@ class MakeGrid:
         self.k  = k
 
         self.n_nodes = nx * ny
-        self.ndof = 2 * self.n_nodes
+        self.ndof    = 2 * self.n_nodes
 
         self.K_global = np.zeros((self.ndof, self.ndof))
         self.edge_list = []  # speichert (i,j)
-        self.elements = []
+        self.elements  = []
 
         self._build_grid()
 
@@ -69,14 +69,14 @@ class MakeGrid:
         self.elements.append((i, j, K_elem, dofs))
 
     def _build_grid(self):
-        # Horizontal
+        # Horizontal -
         for iy in range(self.ny):
             for ix in range(self.nx - 1):
                 i = self.node_id(ix, iy)
                 j = self.node_id(ix + 1, iy)
                 self._add_element(i, j, np.array([1.0, 0.0]))
 
-        # Vertical
+        # Vertikal |
         for iy in range(self.ny - 1):
             for ix in range(self.nx):
                 i = self.node_id(ix, iy)
@@ -136,7 +136,7 @@ class UserInput:
                 iy = int(input(f"Knoten y (0 bis {ny-1}): "))
 
                 Fx = float(input("Kraft in x-Richtung (positiv=rechts, negativ=links): "))
-                Fy = float(input("Kraft in y-Richtung (positiv=unten, negativ=oben): "))
+                Fy = float(input("Kraft in y-Richtung (positiv=unten,  negativ=oben): "))
 
                 if not (0 <= ix < nx and 0 <= iy < ny):
                     raise ValueError
@@ -166,98 +166,80 @@ class Simulation:
         self.load_iy = load_iy
         self.Fx = Fx
         self.Fy = Fy
-        self.optim_steps: list[set[int]] = []  # speichert Knoten in jedem Schritt
+        self.active_nodes = set(range(self.grid.n_nodes))
 
     def run(self):
-        F = np.zeros(self.grid.ndof)
-        load_node = self.grid.node_id(self.load_ix, self.load_iy)
+        F = np.zeros(self.grid.ndof)     # Kraftvektor initialisieren
+
+        load_node = self.grid.node_id(self.load_ix, self.load_iy)          # Lastknoten bestimmen (Lastangriffspunkt)
+
         F[2 * load_node]     = self.Fx   # x-Richtung
         F[2 * load_node + 1] = self.Fy   # y-Richtung
 
         # Randbedingungen
         u_fixed_idx = []
-        node_fixed = self.grid.node_id(0, self.grid.ny - 1)                # Festlager unten links
+        node_fixed = self.grid.node_id(0, self.grid.ny - 1)                # Festlager unten links (vorerst)
         u_fixed_idx.extend([2 * node_fixed, 2 * node_fixed + 1])
 
-        node_lose = self.grid.node_id(self.grid.nx - 1, self.grid.ny - 1)  # Loslager unten rechts
+        node_lose = self.grid.node_id(self.grid.nx - 1, self.grid.ny - 1)  # Loslager unten rechts (vorerst)
         u_fixed_idx.append(2 * node_lose + 1)
 
-        u = self.solver.solve(self.grid.K_global, F, u_fixed_idx)
-        if u is None:
-            print("System konnte nicht gelöst werden.")
-            return
+        target_nodes = int(self.grid.n_nodes * self.target_mass_frac)
 
-        total_energy = 0.5 * u.T @ self.grid.K_global @ u
-        print("Total energy:", total_energy)
+        iteration = 0
 
-        # Knotenenergien berechnen
-        node_energy = self._compute_node_energy(u)
+        while len(self.active_nodes) > target_nodes:
 
-        # Berechne Elementenergie
-        element_energy = np.zeros(len(self.grid.elements))
-        for idx, (i, j, K_elem, dofs) in enumerate(self.grid.elements):
-            u_e = u[dofs]
-            c_e = 0.5 * u_e.T @ K_elem @ u_e
-            element_energy[idx] = c_e
+            iteration += 1
+            print(f"\nIteration {iteration}")
 
-        # Ziel: Anzahl der zu behaltenden Elemente
-        n_elements_target = int(len(self.grid.elements) * self.target_mass_frac)
-        remaining_elements = set(range(len(self.grid.elements)))
+            K = self.rebuild_global_matrix()
 
-        # Optimierungsschritte initialisieren
-        self.optim_steps: list[set[int]] = []
-        # Anfangszustand: alle Knoten
-        all_nodes = set(range(self.grid.n_nodes))
-        self.optim_steps.append(all_nodes.copy())
+            u = self.solver.solve(K, F, u_fixed_idx)
 
-        # Sortiere Elemente nach Energie (kleinste zuerst)
-        sorted_elements = np.argsort(element_energy)
-
-        for e_idx in sorted_elements:
-            if len(remaining_elements) <= n_elements_target:
+            if u is None:
+                print("Solver ERROR !")
                 break
-            trial_elements = remaining_elements - {e_idx}
 
-            # Berechne verbleibende Knoten für diesen Trial-Schritt
-            remaining_nodes_trial = set()
-            for idx in trial_elements:
-                i, j, _, _ = self.grid.elements[idx]
-                remaining_nodes_trial.add(i)
-                remaining_nodes_trial.add(j)
+            node_energy = self._compute_node_energy_active(u)
 
-            # Prüfe, ob die Struktur noch verbunden ist
-            if self._is_connected(remaining_nodes_trial):
-                remaining_elements.remove(e_idx)
-                # Schritt speichern: aktuelle Knoten nach Entfernung
-                self.optim_steps.append(remaining_nodes_trial.copy())
+            removable = [
+                node for node in self.active_nodes
+                if node not in {load_node, node_fixed, node_lose}
+            ]
 
-        # Speichere die endgültigen Ergebnisse
-        self.remaining_elements = remaining_elements
+            removable_sorted = sorted(removable, key=lambda n: node_energy[n])
 
-        # Alle verbleibenden Knoten aus den verbleibenden Elementen ableiten
-        remaining_nodes = set()
-        for idx in remaining_elements:
-            i, j, _, _ = self.grid.elements[idx]
-            remaining_nodes.add(i)
-            remaining_nodes.add(j)
+            n_remove = max(1, int(0.05 * len(self.active_nodes)))
 
-        self.remaining_nodes = remaining_nodes
-        self.u = u
+            removed  = 0
 
-        topology_vector = np.zeros(self.grid.n_nodes)
-        for node in remaining_nodes:
-            topology_vector[node] = 1
+            for node in removable_sorted:
 
-        topology_matrix = topology_vector.reshape((self.grid.ny, self.grid.nx))
+                trial = self.active_nodes - {node}
 
-        print(f"\nOptimierungsziel: {self.target_mass_frac*100:.0f}% der Ausgangsknoten")
-        print("Knoten, die im optimierten Balken verbleiben:")
-        print(sorted(list(remaining_nodes)))
+                if self._is_connected(trial):
 
-        print("\nTopologie-Matrix (1 = behalten, 0 = gelöscht):")
+                    self.active_nodes.remove(node)
+                    removed += 1
+
+                if removed >= n_remove:
+                    break
+
+            print("aktive Knoten:", len(self.active_nodes))     
+        
+        topology = np.zeros(self.grid.n_nodes)
+
+        for n in self.active_nodes:
+            topology[n] = 1
+
+        topology_matrix = topology.reshape((self.grid.ny, self.grid.nx))
+
+        print("\nFinal Topologiematrix:")
+
         for row in topology_matrix:
-            print("  ".join(str(int(val)) for val in row))
-
+            print(" ".join(str(int(x)) for x in row))  
+        
     def _compute_node_energy(self, u):
         node_energy = np.zeros(self.grid.n_nodes)
 
@@ -268,17 +250,36 @@ class Simulation:
             node_energy[j] += 0.5 * c_e
 
         node_energy_matrix = node_energy.reshape((self.grid.ny, self.grid.nx))
-        print("\nNode energy matrix:")
+        print("\nKnoten-Energie Matrix:")
         for row in node_energy_matrix:
             print("  ".join(f"{val:.6f}" for val in row))
 
         return node_energy
+    
+    def _compute_node_energy_active(self, u):
+
+        energy = np.zeros(self.grid.n_nodes)
+
+        for i, j, K_elem, dofs in self.grid.elements:
+
+            if i not in self.active_nodes:
+                continue
+
+            if j not in self.active_nodes:
+                continue
+
+            u_e = u[dofs]
+
+            e = 0.5 * u_e.T @ K_elem @ u_e
+
+            energy[i] += 0.5 * e
+            energy[j] += 0.5 * e
+
+        return energy
 
     def _is_connected(self, allowed_nodes):
-        import networkx as nx
 
-        # gültige Kanten (nur Knoten in allowed_nodes)
-        valid_edges = [
+        valid_edges = [                  # gültige Kanten bestimmen
             (i, j)
             for (i, j) in self.grid.edge_list
             if i in allowed_nodes and j in allowed_nodes
@@ -287,54 +288,56 @@ class Simulation:
         if len(valid_edges) == 0:
             return False
 
-        G = nx.Graph()
-        G.add_nodes_from(allowed_nodes)
-        G.add_edges_from(valid_edges)
+        n = len(allowed_nodes)
+        node_list = list(allowed_nodes)
+        node_index = {node: idx for idx, node in enumerate(node_list)}
 
-        return nx.is_connected(G)
+        B = np.zeros((n, len(valid_edges)))
+
+        for e, (i, j) in enumerate(valid_edges):
+            B[node_index[i], e] = 1
+            B[node_index[j], e] = -1
+
+        L = B @ B.T
+
+        eigvals = np.linalg.eigvalsh(L)
+
+        tol = 1e-8
+        n_zero = np.sum(eigvals < tol)
+
+        return n_zero == 1
     
-    def plot_structure(self, u=None, scale=1.0, remaining_nodes=None):
-        import matplotlib.pyplot as plt
+    def rebuild_global_matrix(self):
 
-        fig, ax = plt.subplots()
+        ndof = self.grid.ndof
+        K = np.zeros((ndof, ndof))
 
-        for (i, j) in self.grid.edge_list:
-            if remaining_nodes is not None:
-                if i not in remaining_nodes or j not in remaining_nodes:
-                    continue
+        for i, j, K_elem, dofs in self.grid.elements:
 
-            x1 = i % self.grid.nx
-            y1 = i // self.grid.nx
-            x2 = j % self.grid.nx
-            y2 = j // self.grid.nx
+            if i not in self.active_nodes:
+                continue
 
-            if u is not None:
-                x1 += scale * u[2*i]
-                y1 += scale * u[2*i+1]
-                x2 += scale * u[2*j]
-                y2 += scale * u[2*j+1]
+            if j not in self.active_nodes:
+                continue
 
-            ax.plot([x1, x2], [y1, y2], "k-")
+            for a in range(4):
+                for b in range(4):
+                    K[dofs[a], dofs[b]] += K_elem[a, b]
 
-        ax.set_aspect("equal")
-        ax.invert_yaxis()
-        ax.set_title("Struktur")
+        return K
 
-        return fig
 
-    def plot_nodes(self, remaining_nodes, u=None, scale=1.0):
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots()
-        
-        for node in remaining_nodes:
-            x = node % self.grid.nx
-            y = node // self.grid.nx
-            if u is not None:
-                x += scale * u[2*node]
-                y += scale * u[2*node+1]
-            ax.scatter(x, y, color="black", s=30)  # Punktgröße anpassen
+if __name__ == "__main__":
+    user_input = UserInput()
+    user_input.get_input()
 
-        ax.set_aspect("equal")
-        ax.invert_yaxis()
-        ax.set_title("Knotenstruktur")
-        return fig
+    sim = Simulation(
+        nx=user_input.nx,
+        ny=user_input.ny,
+        target_mass_frac=user_input.target_mass_frac,
+        load_ix=user_input.load_ix,
+        load_iy=user_input.load_iy,
+        Fx=user_input.Fx,
+        Fy=user_input.Fy,
+    )
+    sim.run()
