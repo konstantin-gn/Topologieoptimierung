@@ -1,5 +1,7 @@
 import numpy as np
 import numpy.typing as npt
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 class LinearSolver:
@@ -53,8 +55,29 @@ class MakeGrid:
     def element_dofs(self, i, j):
         return [2 * i, 2 * i + 1, 2 * j, 2 * j + 1]
 
-    def _add_element(self, i, j, direction):
-        K_local = self.k * np.array([[1, -1], [-1, 1]])
+    def _add_element(self, i, j, direction, k_factor=1.0):
+        # lokale 1D-Federsteifigkeit mit optionalem Skalierungsfaktor
+        K_local = (self.k * k_factor) * np.array([[1, -1], [-1, 1]])
+
+        # Normierter Richtungsvektor der Feder
+        e_n = direction / np.linalg.norm(direction)
+
+        # Projektion in globale Koordinaten
+        O = np.outer(e_n, e_n)
+
+        # 4x4 Elementsteifigkeitsmatrix im globalen System
+        K_elem = np.kron(K_local, O)
+
+        self.edge_list.append((i, j))
+        dofs = self.element_dofs(i, j)
+
+        # Superposition in globale Steifigkeitsmatrix
+        for a in range(4):
+            for b in range(4):
+                self.K_global[dofs[a], dofs[b]] += K_elem[a, b]
+
+        self.elements.append((i, j, K_elem, dofs))
+
         e_n = direction / np.linalg.norm(direction)
         O = np.outer(e_n, e_n)
         K_elem = np.kron(K_local, O)
@@ -83,20 +106,28 @@ class MakeGrid:
                 j = self.node_id(ix, iy + 1)
                 self._add_element(i, j, np.array([0.0, 1.0]))
 
-        # Diagonal ↘
+        # Diagonal 1
         for iy in range(self.ny - 1):
             for ix in range(self.nx - 1):
                 i = self.node_id(ix, iy)
                 j = self.node_id(ix + 1, iy + 1)
-                self._add_element(i, j, np.array([1.0, 1.0]))
+                self._add_element(
+                    i, j,
+                    np.array([1.0, 1.0]),
+                    k_factor=1/np.sqrt(2)
+                )
 
-        # Diagonal ↙
+        # Diagonal 2
         for iy in range(self.ny - 1):
             for ix in range(1, self.nx):
                 i = self.node_id(ix, iy)
                 j = self.node_id(ix - 1, iy + 1)
-                self._add_element(i, j, np.array([-1.0, 1.0]))
-
+                self._add_element(
+                    i, j,
+                    np.array([-1.0, 1.0]),
+                    k_factor=1/np.sqrt(2)
+                )
+                
     def build_incidence_matrix(self):
         n_edges = len(self.edge_list)
         B = np.zeros((self.n_nodes, n_edges))
@@ -275,7 +306,7 @@ class Simulation:
         return node_energy
 
     def _is_connected(self, allowed_nodes):
-        import networkx as nx
+   
 
         # gültige Kanten (nur Knoten in allowed_nodes)
         valid_edges = [
@@ -294,7 +325,7 @@ class Simulation:
         return nx.is_connected(G)
     
     def plot_structure(self, u=None, scale=1.0, remaining_nodes=None):
-        import matplotlib.pyplot as plt
+       
 
         fig, ax = plt.subplots()
 
@@ -323,7 +354,7 @@ class Simulation:
         return fig
 
     def plot_nodes(self, remaining_nodes, u=None, scale=1.0):
-        import matplotlib.pyplot as plt
+        
         fig, ax = plt.subplots()
         
         for node in remaining_nodes:
