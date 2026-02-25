@@ -33,7 +33,6 @@ class StreamlitPlotter:
 
         return fig
 
-
     def plot_deformation(self, active_nodes, u, scale=1.0):
 
         fig, ax = plt.subplots()

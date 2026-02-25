@@ -200,6 +200,8 @@ class Simulation:
             if u is None:
                 print("Solver ERROR !")
                 break
+            
+            self.last_u = u
 
             node_energy = self._compute_node_energy_active(u)
 
@@ -238,7 +240,9 @@ class Simulation:
         print("\nFinal Topologiematrix:")
 
         for row in topology_matrix:
-            print(" ".join(str(int(x)) for x in row))  
+            print(" ".join(str(int(x)) for x in row))
+            
+        return self.active_nodes, self.last_u, self.grid  
         
     def _compute_node_energy(self, u):
         node_energy = np.zeros(self.grid.n_nodes)
