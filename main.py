@@ -13,7 +13,7 @@ class LinearSolver:
         K: npt.NDArray[np.float64],
         F: npt.NDArray[np.float64],
         u_fixed_idx: list[int],
-    ) -> npt.NDArray[np.float64] | None:
+        ) -> npt.NDArray[np.float64] | None:
 
         K_mod = K.copy()
         F_mod = F.copy()
@@ -22,7 +22,7 @@ class LinearSolver:
             K_mod[d, :] = 0.0
             K_mod[:, d] = 0.0
             K_mod[d, d] = 1.0
-            F_mod[d] = 0.0
+            F_mod[d]    = 0.0
 
         try:
             return np.linalg.solve(K_mod, F_mod)
@@ -45,7 +45,7 @@ class MakeGrid:
 
         self.K_global = np.zeros((self.ndof, self.ndof))
         self.edge_list = []  # speichert (i,j)
-        self.elements = []
+        self.elements  = []
 
         self._build_grid()
 
@@ -81,6 +81,7 @@ class MakeGrid:
         self.elements.append((i, j, K_elem, dofs))
 
     def _build_grid(self):
+        
         # Horizontal
         for iy in range(self.ny):
             for ix in range(self.nx - 1):
@@ -88,7 +89,7 @@ class MakeGrid:
                 j = self.node_id(ix + 1, iy)
                 self._add_element(i, j, np.array([1.0, 0.0]))
 
-        # Vertical
+        # Vertikal
         for iy in range(self.ny - 1):
             for ix in range(self.nx):
                 i = self.node_id(ix, iy)
@@ -143,13 +144,9 @@ class UserInput:
 
         while True:
             try:
-                nx = int(input("Länge (in Knoten): "))
-                ny = int(input("Höhe  (in Knoten): "))
-                frac = float(
-                    input(
-                        "Optimierungsgrad (Prozent der verbleibenden Masse, z.B. 40): "
-                    )
-                )
+                nx   = int(input("Länge (in Knoten): "))
+                ny   = int(input("Höhe  (in Knoten): "))
+                frac = float(input("Optimierungsgrad (Prozent der verbleibenden Masse, z.B. 40): "))
                 print("\nKraftangriffspunkt eingeben:")
 
                 ix = int(input(f"Knoten x (0 bis {nx-1}): "))
@@ -172,9 +169,7 @@ class UserInput:
                 self.target_mass_frac = frac / 100
                 break
             except ValueError:
-                print(
-                    "Ungültige Eingabe. Bitte ganze positive Zahlen für Größe und Prozent zwischen 1-100 eingeben."
-                )
+                print("Ungültige Eingabe. Bitte ganze positive Zahlen für Größe und Prozent zwischen 1-100 eingeben.")
 
 
 class Simulation:
@@ -199,8 +194,6 @@ class Simulation:
         - Entfernen nur, wenn Struktur zusammenhängend bleibt (_is_connected)
         - Last- und Lagerknoten werden geschützt (nicht entfernbar)
         """
-
-      
         # Kraftvektor aufbauen
         F = np.zeros(self.grid.ndof)
 
@@ -211,7 +204,6 @@ class Simulation:
         F[2 * load_node]     = self.Fx
         F[2 * load_node + 1] = self.Fy
 
-        
         # 2) Randbedingungen (Lager)
         u_fixed_idx = []
 
@@ -224,7 +216,7 @@ class Simulation:
         u_fixed_idx.append(2 * node_lose + 1)
 
 
-        # 3) Lösen Ku = F
+        # 3) Lösen K*u = F
         u = self.solver.solve(self.grid.K_global, F, u_fixed_idx)
         if u is None:
             print("System konnte nicht gelöst werden.")
@@ -234,11 +226,9 @@ class Simulation:
         total_energy = 0.5 * u.T @ self.grid.K_global @ u
         print("Total energy:", total_energy)
 
-
         # Knotenenergie berechnen
         # _compute_node_energy teilt jede Elementenergie 50/50 auf beide Knoten auf
         node_energy = self._compute_node_energy(u)
-
       
         # Iterative Optimierung: Knoten mit niedriger Energie entfernen, bis Ziel erreicht
         # Ziel: Anzahl zu behaltender Knoten
@@ -365,7 +355,6 @@ class Simulation:
         u_opt = self.solver.solve(K_opt, F, u_fixed_idx_opt)
         self.u = u_opt if u_opt is not None else np.zeros(self.grid.ndof)
 
-      
         # Topologie-Matrix (1=Knoten bleibt, 0=entfernt)
         topology_vector = np.zeros(self.grid.n_nodes)
         for node in self.remaining_nodes:
@@ -380,7 +369,6 @@ class Simulation:
         print("\nTopologie-Matrix (1 = behalten, 0 = gelöscht):")
         for row in topology_matrix:
             print("  ".join(str(int(val)) for val in row))
-
 
     def _compute_node_energy(self, u):
         node_energy = np.zeros(self.grid.n_nodes)
@@ -420,14 +408,12 @@ class Simulation:
         return node_energy
 
     def _is_connected(self, allowed_nodes):
-   
-
         # gültige Kanten (nur Knoten in allowed_nodes)
         valid_edges = [
             (i, j)
             for (i, j) in self.grid.edge_list
             if i in allowed_nodes and j in allowed_nodes
-        ]
+            ]
 
         if len(valid_edges) == 0:
             return False
@@ -443,7 +429,7 @@ class Simulation:
         allowed_nodes: set[int],
         load_node: int,
         support_nodes: set[int],
-    ) -> bool:
+        ) -> bool:
         """
         Prüft, ob der Lastknoten über die vorhandenen Federn (Kanten) einen Pfad
         zu mindestens einem Lagerknoten besitzt.
@@ -452,7 +438,6 @@ class Simulation:
         load_node: Knoten, an dem die Last angreift
         support_nodes: Menge der Lagerknoten (z.B. {Festlager, Loslager})
         """
-
         # Wenn Lastknoten gar nicht mehr existiert -> fail (sollte durch protected_nodes nicht passieren)
         if load_node not in allowed_nodes:
             return False
@@ -462,7 +447,7 @@ class Simulation:
             (i, j)
             for (i, j) in self.grid.edge_list
             if i in allowed_nodes and j in allowed_nodes
-        ]
+            ]
 
         if len(valid_edges) == 0:
             return False
@@ -495,14 +480,12 @@ class Simulation:
         return K
     
     def _is_mechanically_stable(self, K, u_fixed_idx, cond_max=1e8):
-
         """
         Prüft mechanische Stabilität über die Konditionszahl
         der freien DOFs (K_ff).
         cond_max: Schwelle für akzeptable Konditionszahl.
                 Je kleiner, desto strenger.
         """
-
         ndof = K.shape[0]
 
         fixed = np.zeros(ndof, dtype=bool)
@@ -526,7 +509,7 @@ class Simulation:
         """
         Konsistente Plotlogik:
         - Wenn remaining_nodes gesetzt: zeichne alle Elemente, deren Endknoten drin sind.
-        - Wenn remaining_nodes None: fallback = alle Knoten.
+        - Wenn remaining_nodes None:    fallback = alle Knoten.
         """
         fig, ax = plt.subplots()
 
@@ -558,5 +541,3 @@ class Simulation:
         ax.invert_yaxis()
         ax.set_title("Struktur")
         return fig
-
-    

@@ -13,7 +13,7 @@ if "ran" not in st.session_state:
 
 
 # SIDEBAR INPUTS
-st.sidebar.header("Struktur")
+st.sidebar.header("Struktur: Settings")
 
 nx = st.sidebar.number_input("Breite (Knoten)", 2, 100, 10)
 ny = st.sidebar.number_input("Höhe (Knoten)", 2, 100, 4)
@@ -23,8 +23,8 @@ st.sidebar.header("Kraft")
 
 load_ix = st.sidebar.number_input("Knoten x", 0, nx - 1, 0)
 load_iy = st.sidebar.number_input("Knoten y", 0, ny - 1, 0)
-Fx = st.sidebar.number_input("Fx", value=0.0)
-Fy = st.sidebar.number_input("Fy", value=0.0)
+Fx = st.sidebar.number_input("Fx", value=0)
+Fy = st.sidebar.number_input("Fy", value=0)
 
 
 # SIMULATION STARTEN
