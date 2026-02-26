@@ -6,6 +6,7 @@ from plotter import StreamlitPlotter
 
 st.title("2D Topologieoptimierung")
 
+
 <<<<<<< HEAD
 # --- Sidebar Inputs ---
 st.sidebar.header("Struktur")
