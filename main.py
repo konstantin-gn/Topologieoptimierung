@@ -104,8 +104,7 @@ class MakeGrid:
                 self._add_element(
                     i, j,
                     np.array([1.0, 1.0]),
-                    k_factor=1/np.sqrt(2)
-                )
+                    k_factor=1/np.sqrt(2))
 
         # Diagonal 2
         for iy in range(self.ny - 1):
@@ -115,15 +114,14 @@ class MakeGrid:
                 self._add_element(
                     i, j,
                     np.array([-1.0, 1.0]),
-                    k_factor=1/np.sqrt(2)
-                )
+                    k_factor=1/np.sqrt(2))
                 
     def build_incidence_matrix(self):
         n_edges = len(self.edge_list)
         B = np.zeros((self.n_nodes, n_edges))
 
         for e, (i, j) in enumerate(self.edge_list):
-            B[i, e] = 1.0
+            B[i, e] =  1.0
             B[j, e] = -1.0
 
         return B

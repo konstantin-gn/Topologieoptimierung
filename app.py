@@ -1,16 +1,8 @@
 import streamlit as st
-
 from main import Simulation
-from plotter import StreamlitPlotter
-
 
 st.title("2D Topologieoptimierung")
 
-
-<<<<<<< HEAD
-# --- Sidebar Inputs ---
-st.sidebar.header("Struktur")
-=======
 # Session State initialisieren
 # Speichert Simulation dauerhaft zwischen Interaktionen
 if "sim" not in st.session_state:
@@ -23,29 +15,28 @@ if "ran" not in st.session_state:
 # SIDEBAR INPUTS
 st.sidebar.header("Struktur: Settings")
 
->>>>>>> überarbeitung-optimierung
 nx = st.sidebar.number_input("Breite (Knoten)", 2, 100, 10)
 ny = st.sidebar.number_input("Höhe (Knoten)", 2, 100, 4)
 mass_frac = st.sidebar.slider("Verbleibende Masse (%)", 1, 100, 40) / 100.0
 
 st.sidebar.header("Kraft")
+
 load_ix = st.sidebar.number_input("Knoten x", 0, nx - 1, 0)
 load_iy = st.sidebar.number_input("Knoten y", 0, ny - 1, 0)
 Fx = st.sidebar.number_input("Fx", value=0)
 Fy = st.sidebar.number_input("Fy", value=0)
 
-# --- Simulation starten ---
+
+# SIMULATION STARTEN
 if st.button("Simulation starten"):
+    # Neue Simulation erzeugen
     sim = Simulation(nx, ny, mass_frac, load_ix, load_iy, Fx, Fy)
     sim.run()
 
-    # --- Ganze Struktur plotten ---
-    fig_full = sim.plot_structure(u=sim.u, remaining_nodes=sim.remaining_nodes)
-    st.pyplot(fig_full)
+    # Im Session State speichern
+    st.session_state.sim = sim
+    st.session_state.ran = True
 
-<<<<<<< HEAD
-    # --- Optimierungsschritte ---
-=======
 
 # AUSGABE (nur wenn Simulation bereits lief)
 if st.session_state.ran and st.session_state.sim is not None:
@@ -64,10 +55,12 @@ if st.session_state.ran and st.session_state.sim is not None:
     st.pyplot(fig_original)
 
     # Optimierungsschritte 
->>>>>>> überarbeitung-optimierung
     st.subheader("Optimierungs-Schritte")
+
     if hasattr(sim, "optim_steps") and len(sim.optim_steps) > 0:
+
         max_step = len(sim.optim_steps) - 1
+
         step = st.slider(
             "Schritt wählen",
             min_value=0,
@@ -75,18 +68,20 @@ if st.session_state.ran and st.session_state.sim is not None:
             value=max_step,
             step=1,
         )
+
         remaining_nodes_step = sim.optim_steps[step]
-        fig_step = sim.plot_nodes(remaining_nodes_step, u=sim.u)
+
+        # Einzelne Schritte plotten 
+        fig_step = sim.plot_structure(
+            u=None,
+            remaining_nodes=remaining_nodes_step,
+            scale=1.0
+        )
         st.pyplot(fig_step)
+
     else:
         st.write("Keine Optimierungsschritte vorhanden.")
 
-<<<<<<< HEAD
-    # --- Verformte Struktur (letzter Schritt) ---
-    st.subheader("Verformte Struktur (letzter Schritt)")
-    fig2 = sim.plot_nodes(sim.remaining_nodes, u=sim.u, scale=10)
-    st.pyplot(fig2)
-=======
     # VERFORMTE STRUKTUR 
     st.subheader("Verformte Struktur")
 
@@ -104,4 +99,3 @@ if st.session_state.ran and st.session_state.sim is not None:
         scale=scale
     )
     st.pyplot(fig_deformed)
->>>>>>> überarbeitung-optimierung
