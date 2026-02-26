@@ -13,7 +13,7 @@ class LinearSolver:
         K: npt.NDArray[np.float64],
         F: npt.NDArray[np.float64],
         u_fixed_idx: list[int],
-    ) -> npt.NDArray[np.float64] | None:
+        ) -> npt.NDArray[np.float64] | None:
 
         K_mod = K.copy()
         F_mod = F.copy()
@@ -43,7 +43,7 @@ class MakeGrid:
         self.n_nodes = nx * ny
         self.ndof    = 2 * self.n_nodes
 
-        self.K_global = np.zeros((self.ndof, self.ndof))
+        self.K_global  = np.zeros((self.ndof, self.ndof))
         self.edge_list = []  # speichert (i,j)
         self.elements  = []
 
@@ -81,6 +81,10 @@ class MakeGrid:
         self.elements.append((i, j, K_elem, dofs))
 
     def _build_grid(self):
+<<<<<<< HEAD
+=======
+        
+>>>>>>> überarbeitung-optimierung
         # Horizontal -
         for iy in range(self.ny):
             for ix in range(self.nx - 1):
@@ -143,13 +147,9 @@ class UserInput:
 
         while True:
             try:
-                nx = int(input("Länge (in Knoten): "))
-                ny = int(input("Höhe  (in Knoten): "))
-                frac = float(
-                    input(
-                        "Optimierungsgrad (Prozent der verbleibenden Masse, z.B. 40): "
-                    )
-                )
+                nx   = int(input("Länge (in Knoten): "))
+                ny   = int(input("Höhe  (in Knoten): "))
+                frac = float(input("Optimierungsgrad (Prozent der verbleibenden Masse, z.B. 40): "))
                 print("\nKraftangriffspunkt eingeben:")
 
                 ix = int(input(f"Knoten x (0 bis {nx-1}): "))
@@ -172,9 +172,7 @@ class UserInput:
                 self.target_mass_frac = frac / 100
                 break
             except ValueError:
-                print(
-                    "Ungültige Eingabe. Bitte ganze positive Zahlen für Größe und Prozent zwischen 1-100 eingeben."
-                )
+                print("Ungültige Eingabe. Bitte ganze positive Zahlen für Größe und Prozent zwischen 1-100 eingeben.")
 
 
 class Simulation:
@@ -190,12 +188,33 @@ class Simulation:
         self.active_nodes = set(range(self.grid.n_nodes))
 
     def run(self):
+<<<<<<< HEAD
+=======
+        """
+        Führt eine statische Simulation Ku=F aus und macht anschließend eine
+        knotenbasierte Topologieoptimierung:
+
+        - Knotenenergie aus Feder-Verformungsenergie (node_energy)
+        - Knoten mit niedriger Energie entfernen
+        - Entfernen nur, wenn Struktur zusammenhängend bleibt (_is_connected)
+        - Last- und Lagerknoten werden geschützt (nicht entfernbar)
+        """
+        # Kraftvektor aufbauen
+>>>>>>> überarbeitung-optimierung
         F = np.zeros(self.grid.ndof)
         load_node = self.grid.node_id(self.load_ix, self.load_iy)
         F[2 * load_node]     = self.Fx   # x-Richtung
         F[2 * load_node + 1] = self.Fy   # y-Richtung
 
+<<<<<<< HEAD
         # Randbedingungen
+=======
+        # Kräfte: +x nach rechts, +y nach unten 
+        F[2 * load_node]     = self.Fx
+        F[2 * load_node + 1] = self.Fy
+
+        # 2) Randbedingungen (Lager)
+>>>>>>> überarbeitung-optimierung
         u_fixed_idx = []
         node_fixed = self.grid.node_id(0, self.grid.ny - 1)                # Festlager unten links
         u_fixed_idx.extend([2 * node_fixed, 2 * node_fixed + 1])
@@ -203,6 +222,11 @@ class Simulation:
         node_lose = self.grid.node_id(self.grid.nx - 1, self.grid.ny - 1)  # Loslager unten rechts
         u_fixed_idx.append(2 * node_lose + 1)
 
+<<<<<<< HEAD
+=======
+
+        # 3) Lösen K*u = F
+>>>>>>> überarbeitung-optimierung
         u = self.solver.solve(self.grid.K_global, F, u_fixed_idx)
         if u is None:
             print("System konnte nicht gelöst werden.")
@@ -211,6 +235,7 @@ class Simulation:
         total_energy = 0.5 * u.T @ self.grid.K_global @ u
         print("Total energy:", total_energy)
 
+<<<<<<< HEAD
         # Knotenenergien berechnen
         node_energy = self._compute_node_energy(u)
 
@@ -220,6 +245,15 @@ class Simulation:
             u_e = u[dofs]
             c_e = 0.5 * u_e.T @ K_elem @ u_e
             element_energy[idx] = c_e
+=======
+        # Knotenenergie berechnen
+        # _compute_node_energy teilt jede Elementenergie 50/50 auf beide Knoten auf
+        node_energy = self._compute_node_energy(u)
+      
+        # Iterative Optimierung: Knoten mit niedriger Energie entfernen, bis Ziel erreicht
+        # Ziel: Anzahl zu behaltender Knoten
+        n_nodes_target = int(self.grid.n_nodes * self.target_mass_frac)
+>>>>>>> überarbeitung-optimierung
 
         # Ziel: Anzahl der zu behaltenden Elemente
         n_elements_target = int(len(self.grid.elements) * self.target_mass_frac)
@@ -265,6 +299,13 @@ class Simulation:
         self.remaining_nodes = remaining_nodes
         self.u = u
 
+<<<<<<< HEAD
+=======
+        u_opt = self.solver.solve(K_opt, F, u_fixed_idx_opt)
+        self.u = u_opt if u_opt is not None else np.zeros(self.grid.ndof)
+
+        # Topologie-Matrix (1=Knoten bleibt, 0=entfernt)
+>>>>>>> überarbeitung-optimierung
         topology_vector = np.zeros(self.grid.n_nodes)
         for node in remaining_nodes:
             topology_vector[node] = 1
@@ -335,13 +376,18 @@ class Simulation:
         return energy
 
     def _is_connected(self, allowed_nodes):
+<<<<<<< HEAD
         import networkx as nx
 
         valid_edges = [                  # gültige Kanten bestimmen
+=======
+        # gültige Kanten (nur Knoten in allowed_nodes)
+        valid_edges = [
+>>>>>>> überarbeitung-optimierung
             (i, j)
             for (i, j) in self.grid.edge_list
             if i in allowed_nodes and j in allowed_nodes
-        ]
+            ]
 
         if len(valid_edges) == 0:
             return False
@@ -352,9 +398,99 @@ class Simulation:
 
         return nx.is_connected(G)
     
+<<<<<<< HEAD
     def plot_structure(self, u=None, scale=1.0, remaining_nodes=None):
         import matplotlib.pyplot as plt
 
+=======
+    def _has_load_path_to_supports(
+        self,
+        allowed_nodes: set[int],
+        load_node: int,
+        support_nodes: set[int],
+        ) -> bool:
+        """
+        Prüft, ob der Lastknoten über die vorhandenen Federn (Kanten) einen Pfad
+        zu mindestens einem Lagerknoten besitzt.
+
+        allowed_nodes: die aktuell verbleibenden Knoten
+        load_node: Knoten, an dem die Last angreift
+        support_nodes: Menge der Lagerknoten (z.B. {Festlager, Loslager})
+        """
+        # Wenn Lastknoten gar nicht mehr existiert -> fail (sollte durch protected_nodes nicht passieren)
+        if load_node not in allowed_nodes:
+            return False
+
+        # gültige Kanten (nur zwischen verbleibenden Knoten)
+        valid_edges = [
+            (i, j)
+            for (i, j) in self.grid.edge_list
+            if i in allowed_nodes and j in allowed_nodes
+            ]
+
+        if len(valid_edges) == 0:
+            return False
+
+        G = nx.Graph()
+        G.add_nodes_from(allowed_nodes)
+        G.add_edges_from(valid_edges)
+
+        # Prüfe Pfad zu mind. einem Lager
+        for s in support_nodes:
+            if s in allowed_nodes and nx.has_path(G, load_node, s):
+                return True
+
+        return False
+    
+    def _assemble_K_for_elements(self, remaining_elements: set[int]) -> np.ndarray:
+        """
+        Baut eine globale Steifigkeitsmatrix nur aus den übergebenen Elementen auf.
+        Minimalinvasiv: nutzt die bereits gespeicherten (K_elem, dofs) aus self.grid.elements.
+        """
+        K = np.zeros((self.grid.ndof, self.grid.ndof), dtype=float)
+
+        for idx in remaining_elements:
+            i, j, K_elem, dofs = self.grid.elements[idx]
+            # Superposition: Elementbeitrag an den entsprechenden DOFs aufsummieren
+            for a in range(4):
+                for b in range(4):
+                    K[dofs[a], dofs[b]] += K_elem[a, b]
+
+        return K
+    
+    def _is_mechanically_stable(self, K, u_fixed_idx, cond_max=1e8):
+        """
+        Prüft mechanische Stabilität über die Konditionszahl
+        der freien DOFs (K_ff).
+        cond_max: Schwelle für akzeptable Konditionszahl.
+                Je kleiner, desto strenger.
+        """
+        ndof = K.shape[0]
+
+        fixed = np.zeros(ndof, dtype=bool)
+        fixed[u_fixed_idx] = True
+
+        free_idx = np.where(~fixed)[0]
+
+        if len(free_idx) < 2:
+            return False
+
+        K_ff = K[np.ix_(free_idx, free_idx)]
+
+        try:
+            c = np.linalg.cond(K_ff)
+        except np.linalg.LinAlgError:
+            return False
+
+        return np.isfinite(c) and (c < cond_max)
+    
+    def plot_structure(self, u=None, scale=1.0, remaining_nodes=None):
+        """
+        Konsistente Plotlogik:
+        - Wenn remaining_nodes gesetzt: zeichne alle Elemente, deren Endknoten drin sind.
+        - Wenn remaining_nodes None:    fallback = alle Knoten.
+        """
+>>>>>>> überarbeitung-optimierung
         fig, ax = plt.subplots()
 
         for (i, j) in self.grid.edge_list:
@@ -378,6 +514,7 @@ class Simulation:
         ax.set_aspect("equal")
         ax.invert_yaxis()
         ax.set_title("Struktur")
+<<<<<<< HEAD
 
         return fig
 
@@ -396,4 +533,6 @@ class Simulation:
         ax.set_aspect("equal")
         ax.invert_yaxis()
         ax.set_title("Knotenstruktur")
+=======
+>>>>>>> überarbeitung-optimierung
         return fig
