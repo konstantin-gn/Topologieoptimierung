@@ -94,11 +94,3 @@ gespeichert. Diese Datei wird beim ersten Speichern automatisch erstellt.
 ## Technische Details
 
 Das zugrunde liegende Modell basiert auf einem Feder-Netzwerk mit globaler Steifigkeitsmatrix. Die Topologieoptimierung erfolgt durch iterative Entfernung von Knoten mit geringem Energiebeitrag unter Berücksichtigung von Konnektivität, Lastpfaden und mechanischer Stabilität. Zur Implementierung wurden die Bibliotheken NumPy, NetworkX, Matplotlib, Streamlit und TinyDB verwendet.
-
-## Autor
-
-Kevin Geisler
-
-## Lizenz
-
-Dieses Projekt wurde zu Lehr- und Studienzwecken entwickelt.
