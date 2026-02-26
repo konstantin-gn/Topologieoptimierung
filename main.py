@@ -3,22 +3,22 @@ import numpy.typing as npt
 import networkx as nx
 import matplotlib.pyplot as plt
 
-
+# Solver für lineare Gleichungssysteme mit Dirichlet-Randbedingungen
 class LinearSolver:
+
     def __init__(self, eps: float = 1e-9):
         self.eps = eps
 
+    # Löst K u = F mit Dirichlet-Randbedingungen
+    # Randbedingungen werden durch Modifikation von K und F umgesetzt.
+    # Bei Singularität wird eine kleine Regularisierung (eps*I) versucht.
     def solve(
         self,
         K: npt.NDArray[np.float64],
         F: npt.NDArray[np.float64],
         u_fixed_idx: list[int],
     ) -> npt.NDArray[np.float64] | None:
-        """
-        Löst das lineare Gleichungssystem K u = F mit Dirichlet-Randbedingungen.
-        Randbedingungen werden durch Modifikation von K und F umgesetzt.
-        Bei Singularität wird eine kleine Regularisierung (eps*I) versucht.
-        """
+        
         K_mod = K.copy()
         F_mod = F.copy()
 
@@ -30,43 +30,42 @@ class LinearSolver:
             F_mod[d] = 0.0
 
         try:
-            return np.linalg.solve(K_mod, F_mod)
+            return np.linalg.solve(K_mod, F_mod) 
         except np.linalg.LinAlgError:
-            # Regularisierung gegen Singularität
+
+            # Regularisierung gegen Singularität (z.B. bei Mechanismus)
             K_mod += np.eye(K.shape[0]) * self.eps
             try:
-                return np.linalg.solve(K_mod, F_mod)
+                return np.linalg.solve(K_mod, F_mod) 
             except np.linalg.LinAlgError:
                 return None
 
-
+# Stellt die Struktur als Gitter aus Federelementen dar.
 class MakeGrid:
+    
     def __init__(self, nx: int, ny: int, k: float = 1.0):
-        self.nx = nx
-        self.ny = ny
-        self.k = k
+        self.nx = nx    # Anzahl Knoten in x-Richtung
+        self.ny = ny    # Anzahl Knoten in y-Richtung
+        self.k = k  # Federsteifigkeit 
 
-        self.n_nodes = nx * ny
-        self.ndof = 2 * self.n_nodes
+        self.n_nodes = nx * ny  # Gesamtzahl Knoten
+        self.ndof = 2 * self.n_nodes 
 
         self.K_global = np.zeros((self.ndof, self.ndof))
         self.edge_list = []  # speichert (i,j)
         self.elements = []   # speichert (i, j, K_elem, dofs)
 
         self._build_grid()
-
-    def node_id(self, ix, iy):
+ 
+    def node_id(self, ix, iy):  
         return iy * self.nx + ix
 
     def element_dofs(self, i, j):
         return [2 * i, 2 * i + 1, 2 * j, 2 * j + 1]
 
+    # Fügt ein Federelement zwischen i und j hinzu, orientiert entlang direction (z.B. [1,0] horizontal).
     def _add_element(self, i, j, direction, k_factor=1.0):
-        """
-        Fügt ein Federelement zwischen i und j hinzu.
-        direction definiert die Orientierung (z.B. [1,0] horizontal).
-        k_factor erlaubt diagonale Skalierung.
-        """
+        
         # 1D Federsteifigkeit
         K_local = (self.k * k_factor) * np.array([[1.0, -1.0], [-1.0, 1.0]])
 
@@ -83,7 +82,7 @@ class MakeGrid:
         self.edge_list.append((i, j))
         dofs = self.element_dofs(i, j)
 
-        # Assemble in globale Matrix
+        # Elementmatrix in globale K-Matrix einfügen
         for a in range(4):
             for b in range(4):
                 self.K_global[dofs[a], dofs[b]] += K_elem[a, b]
@@ -105,25 +104,23 @@ class MakeGrid:
                 j = self.node_id(ix, iy + 1)
                 self._add_element(i, j, np.array([0.0, 1.0]))
 
-        # Diagonal 1
+        # Diagonal rechts unten -> links oben
         for iy in range(self.ny - 1):
             for ix in range(self.nx - 1):
                 i = self.node_id(ix, iy)
                 j = self.node_id(ix + 1, iy + 1)
                 self._add_element(i, j, np.array([1.0, 1.0]), k_factor=1 / np.sqrt(2))
 
-        # Diagonal 2
+        # Diagonal links unten -> rechts oben
         for iy in range(self.ny - 1):
             for ix in range(1, self.nx):
                 i = self.node_id(ix, iy)
                 j = self.node_id(ix - 1, iy + 1)
                 self._add_element(i, j, np.array([-1.0, 1.0]), k_factor=1 / np.sqrt(2))
 
+    # Baut die Matrix B (Knoten x Kanten).
     def build_incidence_matrix(self):
-        """
-        Baut die Inzidenzmatrix B (Knoten x Kanten).
-        Kann später für sehr schnelle Konnektivitätschecks genutzt werden.
-        """
+        
         n_edges = len(self.edge_list)
         B = np.zeros((self.n_nodes, n_edges))
 
@@ -133,7 +130,7 @@ class MakeGrid:
 
         return B
 
-
+# UserInput sammelt die Eingaben für die Simulation
 class UserInput:
     def __init__(self):
         self.nx: int = 10
@@ -147,7 +144,7 @@ class UserInput:
     def get_input(self):
         print("Bitte die Größe des Balkens eingeben (Anzahl an Knoten)")
 
-        while True:
+        while True: # Eingabe in Schleife, damit ungültige Eingaben nicht direkt zum Abbruch führen
             try:
                 nx = int(input("Länge (in Knoten): "))
                 ny = int(input("Höhe  (in Knoten): "))
@@ -168,7 +165,7 @@ class UserInput:
                 self.Fx = Fx
                 self.Fy = Fy
 
-                if nx <= 0 or ny <= 0 or not (0 < frac <= 100):
+                if nx <= 0 or ny <= 0 or not (0 < frac <= 100): # ungültige Werte für Größe oder Prozent
                     raise ValueError
 
                 self.nx = nx
@@ -180,15 +177,10 @@ class UserInput:
                 print("Ungültige Eingabe. Bitte ganze positive Zahlen für Größe und Prozent zwischen 1-100 eingeben.")
 
 
+# Simulation-Objekt mit Run- und Resume-Funktion sowie Save/Load für DB
 class Simulation:
-    """
-    Deine Simulation + Erweiterung:
-    - initialize_state(): setzt F, Lager, protected nodes, remaining sets einmalig
-    - run(): startet neu (reset)
-    - resume(): setzt ab aktuellem Stand fort
-    - to_record_dict/from_record_dict: Save/Load für TinyDB
-    """
 
+    # Initialisierung mit Parametern
     def __init__(self, nx, ny, target_mass_frac, load_ix, load_iy, Fx, Fy):
         self.grid = MakeGrid(nx, ny)
         self.solver = LinearSolver()
@@ -201,7 +193,7 @@ class Simulation:
 
         self.optim_steps: list[set[int]] = []
 
-        # --- Zustandsfelder für Save/Load/Fortsetzen ---
+        # Zustandsfelder für Save/Load/Fortsetzen
         self._initialized = False
         self.F: np.ndarray | None = None
         self.u_fixed_idx: list[int] | None = None
@@ -216,16 +208,12 @@ class Simulation:
         self.remaining_nodes: set[int] | None = None
         self.remaining_elements: set[int] | None = None
 
-        self.u: np.ndarray | None = None  # letzte Lösung (Plot)
+        self.u: np.ndarray | None = None  # aktueller Verschiebungsvektor (für Plot)
 
-    # ---------------------------------------------------------
-    # Initialisierung (einmalig)
-    # ---------------------------------------------------------
+    # Initialisierung 
+    # baut die Startstruktur auf (F, Lager, Schutzknoten, remaining sets) und wird bei run() und resume() genutzt.
     def initialize_state(self) -> None:
-        """
-        Baut Startzustand (F, Lager, Schutzknoten, remaining sets).
-        Wird bei run() und resume() genutzt.
-        """
+
         if self._initialized:
             return
 
@@ -274,9 +262,8 @@ class Simulation:
 
         self._initialized = True
 
-    # ---------------------------------------------------------
+
     # Start neu
-    # ---------------------------------------------------------
     def run(self) -> None:
         """
         Startet neu (setzt Zustand zurück) und optimiert vollständig.
@@ -299,9 +286,8 @@ class Simulation:
         # Optimierung ausführen
         self._optimization_loop(max_tries=50, cond_max=1e8, max_iters=None)
 
-    # ---------------------------------------------------------
+
     # Fortsetzen
-    # ---------------------------------------------------------
     def resume(self, max_iters: int | None = None) -> None:
         """
         Setzt Optimierung ab aktuellem Stand fort.
@@ -310,15 +296,12 @@ class Simulation:
         self.initialize_state()
         self._optimization_loop(max_tries=50, cond_max=1e8, max_iters=max_iters)
 
-    # ---------------------------------------------------------
-    # Kernschleife (deine while-Schleife, minimal angepasst)
-    # ---------------------------------------------------------
+
+    # Kernschleife 
+    # führt die iterative Knoten-Entfernung durch
+    # sortiert die Kandidaten nach Energie (wie bisher) und prüft Konnektivität, Lastpfad und mechanische Stabilität
     def _optimization_loop(self, max_tries: int, cond_max: float, max_iters: int | None):
-        """
-        Führt die iterative Knoten-Entfernung durch.
-        Der Code entspricht deiner run()-Schleife, nur dass
-        remaining_nodes/elements aus dem Objekt kommen (für resume).
-        """
+       
         assert self.F is not None
         assert self.u_fixed_idx is not None
         assert self.load_node is not None
@@ -416,7 +399,7 @@ class Simulation:
 
             iters += 1
 
-        # Finale Lösung für Plot: nochmal auf finaler Struktur lösen
+        # Lösung für Plot: nochmal auf finaler Struktur lösen
         K_opt = self._assemble_K_for_elements(self.remaining_elements)
 
         removed_nodes = set(range(self.grid.n_nodes)) - self.remaining_nodes
@@ -428,7 +411,7 @@ class Simulation:
         u_opt = self.solver.solve(K_opt, self.F, u_fixed_idx_opt)
         self.u = u_opt if u_opt is not None else np.zeros(self.grid.ndof)
 
-        # Konsolen-Ausgabe wie bisher
+        # Konsolen-Ausgabe 
         topology_vector = np.zeros(self.grid.n_nodes)
         for node in self.remaining_nodes:
             topology_vector[node] = 1
@@ -442,15 +425,12 @@ class Simulation:
         for row in topology_matrix:
             print("  ".join(str(int(val)) for val in row))
 
-    # ---------------------------------------------------------
-    # Save/Load (TinyDB kompatibel)
-    # ---------------------------------------------------------
+
+    # Save/Load 
+    # exportiert alle relevanten Informationen in ein JSON-kompatibles Dict 
+    # sets -> lists, numpy arrays -> lists
     def to_record_dict(self, label: str) -> dict:
-        """
-        Exportiert Zustand in JSON-kompatibles Dict:
-        - sets -> lists
-        - numpy -> lists
-        """
+        
         self.initialize_state()
 
         def s2l(s: set[int] | None) -> list[int]:
@@ -478,11 +458,10 @@ class Simulation:
             "finished": bool(len(self.remaining_nodes) <= int(self.grid.n_nodes * self.target_mass_frac)),
         }
 
+    # Baut Simulation aus DB-Daten wieder auf.
     @staticmethod
     def from_record_dict(record: dict) -> "Simulation":
-        """
-        Baut Simulation aus DB-Daten wieder auf.
-        """
+        
         sim = Simulation(
             record["nx"],
             record["ny"],
@@ -508,9 +487,7 @@ class Simulation:
         sim._initialized = True
         return sim
 
-    # ---------------------------------------------------------
-    # Deine Helper (unverändert)
-    # ---------------------------------------------------------
+    # Berechnet die Energiebeiträge für alle Knoten basierend auf den aktuellen Verschiebungen u
     def _compute_node_energy(self, u):
         node_energy = np.zeros(self.grid.n_nodes)
 
@@ -527,6 +504,7 @@ class Simulation:
 
         return node_energy
 
+    # Berechnet die Energiebeiträge für eine Teilmenge von Elementen 
     def _compute_node_energy_subset(self, u: np.ndarray, remaining_elements: set[int]) -> np.ndarray:
         node_energy = np.zeros(self.grid.n_nodes, dtype=float)
 
@@ -538,7 +516,8 @@ class Simulation:
             node_energy[j] += 0.5 * c_e
 
         return node_energy
-
+    
+    # Prüft, ob die verbleibenden Knoten eine zusammenhängende Struktur bilden.
     def _is_connected(self, allowed_nodes):
         valid_edges = [
             (i, j)
@@ -555,6 +534,7 @@ class Simulation:
 
         return nx.is_connected(G)
 
+    # Prüft, ob es einen Pfad von der Last zu mindestens einem der Stützpunkte gibt (Lastpfad).
     def _has_load_path_to_supports(self, allowed_nodes: set[int], load_node: int, support_nodes: set[int]) -> bool:
         if load_node not in allowed_nodes:
             return False
@@ -577,7 +557,8 @@ class Simulation:
                 return True
 
         return False
-
+    
+    # Baut die globale Steifigkeitsmatrix K aus den Elementmatrizen der verbleibenden Elemente zusammen.
     def _assemble_K_for_elements(self, remaining_elements: set[int]) -> np.ndarray:
         K = np.zeros((self.grid.ndof, self.grid.ndof), dtype=float)
 
@@ -589,6 +570,7 @@ class Simulation:
 
         return K
 
+    # Prüft, ob die Struktur mit den gegebenen Randbedingungen mechanisch stabil (keine Einzelstäbe) ist.
     def _is_mechanically_stable(self, K, u_fixed_idx, cond_max=1e8):
         ndof = K.shape[0]
 
@@ -608,6 +590,7 @@ class Simulation:
 
         return np.isfinite(c) and (c < cond_max)
 
+    # Visualisierung/Plot
     def plot_structure(self, u=None, scale=1.0, remaining_nodes=None):
         fig, ax = plt.subplots()
 

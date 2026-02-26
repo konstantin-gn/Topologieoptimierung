@@ -1,13 +1,11 @@
 import streamlit as st
-
 from main import Simulation
 from db_connector import DBConnector
 
 st.title("2D Topologieoptimierung")
 
-# ============================================================
-# Session State Defaults (vor Widgets!)
-# ============================================================
+
+# Session State Defaults und Initialisierung
 defaults = {
     "sim": None,
     "ran": False,
@@ -16,29 +14,27 @@ defaults = {
     # aktiver Run (wird beim Laden gesetzt)
     "current_label": None,
 
-    # Widget-Keys
-    "nx": 10,
-    "ny": 4,
+    # UI-Werte (Anfangswerte)
+    "nx": 7,
+    "ny": 2,
     "mass_pct": 40,
-    "load_ix": 0,
+    "load_ix": 3,
     "load_iy": 0,
     "Fx": 0.0,
-    "Fy": 0.0,
+    "Fy": 1.0,
 
-    # Pending-Mechanismus, um Widget-Keys sicher zu setzen (vor Widgets)
+    # temporärer Speicher für geladene Werte (damit Slider/Inputs korrekt springen)
     "pending_record": None,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# ============================================================
-# Pending Settings anwenden (GANZ FRÜH, vor Widgets!)
-# -> Dadurch springen Slider/Inputs nach dem Laden korrekt
-# ============================================================
+# wenn pending_record gesetzt ist, dann Werte daraus in Session State übertragen (z.B. nach Laden eines Runs)
 if st.session_state.pending_record is not None:
     record = st.session_state.pending_record
 
+    # Werte in Session State übertragen (damit Slider/Inputs korrekt springen)
     st.session_state.nx = int(record["nx"])
     st.session_state.ny = int(record["ny"])
     st.session_state.mass_pct = int(round(float(record["target_mass_frac"]) * 100))
@@ -48,20 +44,17 @@ if st.session_state.pending_record is not None:
     st.session_state.Fx = float(record["Fx"])
     st.session_state.Fy = float(record["Fy"])
 
-    # clamp falls nx/ny kleiner geworden sind
+    # clamp damit Werte im gültigen Bereich bleiben (z.B. wenn nx/ny kleiner geworden sind)
     st.session_state.load_ix = min(st.session_state.load_ix, st.session_state.nx - 1)
     st.session_state.load_iy = min(st.session_state.load_iy, st.session_state.ny - 1)
 
     st.session_state.pending_record = None
 
-# ============================================================
-# DB Connector
-# ============================================================
+# DB Connector initialisieren 
 db = DBConnector("db.json")
 
-# ============================================================
-# SIDEBAR INPUTS (mit Keys)
-# ============================================================
+
+# Seitenleiste mit Eingaben und Buttons
 st.sidebar.header("Struktur: Settings")
 
 nx = st.sidebar.number_input("Breite (Knoten)", 2, 100, key="nx")
@@ -71,7 +64,7 @@ mass_frac = st.sidebar.slider("Verbleibende Masse (%)", 1, 100, key="mass_pct") 
 
 st.sidebar.header("Kraft")
 
-# clamp damit Werte im gültigen Bereich bleiben
+# clamp damit Werte im gültigen Bereich bleiben (z.B. wenn nx/ny kleiner geworden sind)
 st.session_state.load_ix = min(int(st.session_state.load_ix), int(nx) - 1)
 st.session_state.load_iy = min(int(st.session_state.load_iy), int(ny) - 1)
 
@@ -81,10 +74,7 @@ load_iy = st.sidebar.number_input("Knoten y", 0, int(ny) - 1, key="load_iy")
 Fx = st.sidebar.number_input("Fx", key="Fx")
 Fy = st.sidebar.number_input("Fy", key="Fy")
 
-# ============================================================
-# SPEICHERN / LADEN
-# (Buttons untereinander)
-# ============================================================
+# Speichern/Laden Bereich
 st.sidebar.header("Speichern / Laden")
 
 saved = db.list_simulations()
@@ -94,13 +84,11 @@ options = ["(keine)"] + [
 ]
 selected = st.sidebar.selectbox("Gespeicherte Simulationen", options, index=0)
 
-# Name: wenn ein Run geladen ist, zeige den aktuellen Namen, sonst "run"
-default_name = st.session_state.current_label or "run"
+# Name: wenn ein Run geladen ist, zeige den aktuellen Namen, sonst "new run"
+default_name = st.session_state.current_label or "new run"
 save_label = st.sidebar.text_input("Name", value=default_name)
 
-# ------------------------------------------------------------
 # Speichern = Update (überschreibt bestehenden Run)
-# ------------------------------------------------------------
 if st.sidebar.button("Speichern"):
     if st.session_state.sim is None:
         st.sidebar.warning("Keine Simulation im Speicher (erst starten oder laden).")
@@ -118,9 +106,8 @@ if st.sidebar.button("Speichern"):
             except Exception as e:
                 st.sidebar.error(f"Speichern fehlgeschlagen: {e}")
 
-# ------------------------------------------------------------
-# Neu speichern = Insert (nur wenn Name noch nicht existiert)
-# ------------------------------------------------------------
+
+# Neu speichern = Save as-funktion (nur wenn Name noch nicht existiert)-
 if st.sidebar.button("Neu speichern"):
     if st.session_state.sim is None:
         st.sidebar.warning("Keine Simulation im Speicher (erst starten oder laden).")
@@ -138,9 +125,7 @@ if st.sidebar.button("Neu speichern"):
             except Exception as e:
                 st.sidebar.error(str(e))
 
-# ------------------------------------------------------------
-# Laden
-# ------------------------------------------------------------
+# Laden eines bestehenden Runs
 if st.sidebar.button("Laden"):
     if selected == "(keine)":
         st.sidebar.warning("Bitte einen Eintrag auswählen.")
@@ -156,16 +141,14 @@ if st.sidebar.button("Laden"):
             st.session_state.loaded_doc_id = doc_id
             st.session_state.current_label = record.get("label", None)
 
-            # UI-Werte in pending_record -> werden vor Widgets angewendet
+            # UI-Werte in pending_record packen, damit sie nach dem Rerun in die Inputs/Slider übertragen werden
             st.session_state.pending_record = record
             st.rerun()
 
         except Exception as e:
             st.sidebar.error(f"Laden fehlgeschlagen: {e}")
 
-# ============================================================
-# SIMULATION STARTEN (neuer Run -> current_label reset)
-# ============================================================
+# Simulation starten (neuer Run -> current_label reset)
 if st.button("Simulation starten"):
     sim = Simulation(nx, ny, mass_frac, load_ix, load_iy, Fx, Fy)
     sim.run()
@@ -177,9 +160,7 @@ if st.button("Simulation starten"):
     # neuer Run -> nicht an alten Namen gebunden
     st.session_state.current_label = None
 
-# ============================================================
-# AUSGABE / PLOTS
-# ============================================================
+# Ausgabe/Plots der Simulationsergebnisse 
 if st.session_state.ran and st.session_state.sim is not None:
     sim = st.session_state.sim
 
@@ -188,13 +169,15 @@ if st.session_state.ran and st.session_state.sim is not None:
         st.caption(f"Aktive Simulation: **{st.session_state.current_label}**")
     else:
         st.caption("Aktive Simulation: (noch nicht gespeichert)")
-
+    
     all_nodes = set(range(sim.grid.n_nodes))
 
+    # Originalstruktur (unverformt, alle Knoten)
     st.subheader("Originalstruktur")
     fig_original = sim.plot_structure(u=None, remaining_nodes=all_nodes, scale=1.0)
     st.pyplot(fig_original)
 
+    # Optimierungsschritte (wenn vorhanden)
     st.subheader("Optimierungs-Schritte")
     if hasattr(sim, "optim_steps") and sim.optim_steps and len(sim.optim_steps) > 0:
         max_step = len(sim.optim_steps) - 1
@@ -205,9 +188,11 @@ if st.session_state.ran and st.session_state.sim is not None:
     else:
         st.write("Keine Optimierungsschritte vorhanden.")
 
+    # Verformte Struktur (wenn vorhanden)
     st.subheader("Verformte Struktur")
     scale = st.slider("Verformung skalieren", 0.01, 1.0, 0.1, 0.01)
 
+    # nicht umbedinkt nötig, aber wenn sim.u oder sim.remaining_nodes nicht vorhanden sind, dann trotzdem alle Knoten anzeigen
     remaining_nodes_for_plot = getattr(sim, "remaining_nodes", None)
     if remaining_nodes_for_plot is None:
         remaining_nodes_for_plot = all_nodes
