@@ -38,7 +38,6 @@ if st.button("Simulation starten"):
     st.session_state.ran = True
 
 
-
 # AUSGABE (nur wenn Simulation bereits lief)
 if st.session_state.ran and st.session_state.sim is not None:
 

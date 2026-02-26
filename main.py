@@ -82,14 +82,14 @@ class MakeGrid:
 
     def _build_grid(self):
         
-        # Horizontal
+        # Horizontal -
         for iy in range(self.ny):
             for ix in range(self.nx - 1):
                 i = self.node_id(ix, iy)
                 j = self.node_id(ix + 1, iy)
                 self._add_element(i, j, np.array([1.0, 0.0]))
 
-        # Vertikal
+        # Vertikal |
         for iy in range(self.ny - 1):
             for ix in range(self.nx):
                 i = self.node_id(ix, iy)
