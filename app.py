@@ -1,6 +1,8 @@
 import streamlit as st
 from main import Simulation
 from db_connector import DBConnector
+import io
+import matplotlib.pyplot as plt
 
 st.title("2D Topologieoptimierung")
 
@@ -175,7 +177,10 @@ if st.session_state.ran and st.session_state.sim is not None:
     # Originalstruktur (unverformt, alle Knoten)
     st.subheader("Originalstruktur")
     fig_original = sim.plot_structure(u=None, remaining_nodes=all_nodes, scale=1.0)
+    ax = fig_original.axes[0]
+    ax.set_title("Ausgangsstruktur") 
     st.pyplot(fig_original)
+    plt.close(fig_original)
 
     # Optimierungsschritte (wenn vorhanden)
     st.subheader("Optimierungs-Schritte")
@@ -183,8 +188,28 @@ if st.session_state.ran and st.session_state.sim is not None:
         max_step = len(sim.optim_steps) - 1
         step = st.slider("Schritt wählen", 0, max_step, max_step, 1)
         remaining_nodes_step = sim.optim_steps[step]
+        progress_pct = int((step / max_step) * 100)  # Prozentualer Fortschritt
         fig_step = sim.plot_structure(u=None, remaining_nodes=remaining_nodes_step, scale=1.0)
         st.pyplot(fig_step)
+        plt.close(fig_step)
+
+        # Download-Button für letzte optimierte Struktur
+        final_nodes = sim.optim_steps[-1]
+        fig_opt = sim.plot_structure(u=None, remaining_nodes=final_nodes, scale=1.0)
+        ax_opt = fig_opt.axes[0]
+        ax_opt.set_title("Optimierte Struktur (100 %)")  # Titel nur hier
+        buf_opt = io.BytesIO()
+        fig_opt.savefig(buf_opt, format="png", dpi=300, bbox_inches="tight")
+        buf_opt.seek(0)
+        st.download_button(
+            label="Optimierte Struktur herunterladen (unverformt)",
+            data=buf_opt,
+            file_name="optimierte_struktur.png",
+            mime="image/png"
+        )
+        st.pyplot(fig_opt)
+        plt.close(fig_opt)
+
     else:
         st.write("Keine Optimierungsschritte vorhanden.")
 
@@ -192,7 +217,6 @@ if st.session_state.ran and st.session_state.sim is not None:
     st.subheader("Verformte Struktur")
     scale = st.slider("Verformung skalieren", 0.01, 1.0, 0.1, 0.01)
 
-    # nicht umbedinkt nötig, aber wenn sim.u oder sim.remaining_nodes nicht vorhanden sind, dann trotzdem alle Knoten anzeigen
     remaining_nodes_for_plot = getattr(sim, "remaining_nodes", None)
     if remaining_nodes_for_plot is None:
         remaining_nodes_for_plot = all_nodes
@@ -203,3 +227,4 @@ if st.session_state.ran and st.session_state.sim is not None:
         scale=scale
     )
     st.pyplot(fig_deformed)
+    plt.close(fig_deformed)
