@@ -43,7 +43,7 @@ class MakeGrid:
         self.n_nodes = nx * ny
         self.ndof = 2 * self.n_nodes
 
-        self.K_global = np.zeros((self.ndof, self.ndof))
+        self.K_global  = np.zeros((self.ndof, self.ndof))
         self.edge_list = []  # speichert (i,j)
         self.elements  = []
 
