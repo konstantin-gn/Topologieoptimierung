@@ -17,7 +17,7 @@ class LinearSolver:
         K: npt.NDArray[np.float64],
         F: npt.NDArray[np.float64],
         u_fixed_idx: list[int],
-    ) -> npt.NDArray[np.float64] | None:
+        ) -> npt.NDArray[np.float64] | None:
         
         K_mod = K.copy()
         F_mod = F.copy()
@@ -52,7 +52,7 @@ class MakeGrid:
         self.ndof = 2 * self.n_nodes 
 
         self.K_global = np.zeros((self.ndof, self.ndof))
-        self.edge_list = []  # speichert (i,j)
+        self.edge_list = []   # speichert (i,j)
         self.elements  = []   # speichert (i, j, K_elem, dofs)
 
         self._build_grid()
@@ -125,7 +125,7 @@ class MakeGrid:
         B = np.zeros((self.n_nodes, n_edges))
 
         for e, (i, j) in enumerate(self.edge_list):
-            B[i, e] = 1.0
+            B[i, e] =  1.0
             B[j, e] = -1.0
 
         return B
@@ -198,14 +198,14 @@ class Simulation:
         self.F: np.ndarray | None = None
         self.u_fixed_idx: list[int] | None = None
 
-        self.load_node: int | None = None
+        self.load_node:  int | None = None
         self.node_fixed: int | None = None
-        self.node_lose: int | None = None
+        self.node_lose:  int | None = None
 
         self.protected_nodes: set[int] | None = None
-        self.support_nodes: set[int] | None = None
+        self.support_nodes:   set[int] | None = None
 
-        self.remaining_nodes: set[int] | None = None
+        self.remaining_nodes:    set[int] | None = None
         self.remaining_elements: set[int] | None = None
 
         self.u: np.ndarray | None = None  # aktueller Verschiebungsvektor (für Plot)
