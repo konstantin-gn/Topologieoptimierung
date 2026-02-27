@@ -39,10 +39,10 @@ defaults = {
     # aktiver Run (wird beim Laden gesetzt)
     "current_label": None,
     # UI-Werte (Anfangswerte)
-    "nx": 31,
-    "ny": 10,
+    "nx": 21,
+    "ny": 7,
     "mass_pct": 40,
-    "load_ix": 15,
+    "load_ix": 10,
     "load_iy": 0,
     "Fx": 0.0,
     "Fy": 1.0,

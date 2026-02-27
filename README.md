@@ -84,7 +84,7 @@ Nach dem Start der Anwendung können die Strukturgröße sowie der Kraftangriffs
 
 ## Validierung am Beispiel des MBB-Balkens
 
-Zur Überprüfung und Validierung der Implementierung wurde das Benchmark-Problem des Messerschmitt–Bölkow–Blohm (MBB)-Balkens verwendet. Dieser Testfall ist als MBB Balken unter Gespeicherten Runs in der UI zufinden. Desweiteren sind die Defaultsettings beim Starten der Simulation ebenfalls dem MBB-Testfall entsprechend. 
+Zur Überprüfung und Validierung der Implementierung wurde das Benchmark-Problem des Messerschmitt–Bölkow–Blohm (MBB)-Balkens verwendet. Dieser Testfall ist als MBB Balken unter Gespeicherten Runs in der UI zufinden. 
 
 MBB Balken: 
 ![Optimierte Struktur eines MBB-Balkens .](mbb_balken.png)
