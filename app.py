@@ -215,6 +215,16 @@ if st.session_state.ran and st.session_state.sim is not None:
 
     # Verformte Struktur (wenn vorhanden)
     st.subheader("Verformte Struktur")
+    # Heatmap der Knoteneenergie
+    st.subheader("Knotenenergie Heatmap")
+
+    fig_heatmap = sim.plot_energy_heatmap()
+
+    if fig_heatmap is not None:
+        st.pyplot(fig_heatmap)
+        plt.close(fig_heatmap)
+    else:
+        st.write("Keine Energie-Daten vorhanden.")
     scale = st.slider("Verformung skalieren", 0.01, 1.0, 0.1, 0.01)
 
     remaining_nodes_for_plot = getattr(sim, "remaining_nodes", None)
@@ -228,3 +238,42 @@ if st.session_state.ran and st.session_state.sim is not None:
     )
     st.pyplot(fig_deformed)
     plt.close(fig_deformed)
+    
+    # Finaler Report
+    st.subheader("Finaler Report")
+
+    report = sim.compute_report()
+
+    if report is not None:
+
+        st.write(f"Verbleibende Knoten: {report['remaining_nodes']} / {report['total_nodes']}")
+        st.write(f"Verbleibende Masse: {report['mass_percent']:.1f} %")
+
+        st.write(f"Maximale Verschiebung: {report['max_displacement']:.6f}")
+        st.write(f"Mittlere Verschiebung: {report['mean_displacement']:.6f}")
+
+        st.write(f"Compliance: {report['compliance']:.6f}")
+        st.write(f"Gesamtenergie: {report['energy']:.6f}")
+
+        # Textfile erzeugen
+        report_text = f"""
+    TOPOLOGIEOPTIMIERUNG REPORT
+
+    Verbleibende Knoten:   {report['remaining_nodes']} / {report['total_nodes']}
+    Verbleibende Masse:    {report['mass_percent']:.1f} %
+
+    Maximale Verschiebung: {report['max_displacement']:.6f}
+    Mittlere Verschiebung: {report['mean_displacement']:.6f}
+
+    Compliance:            {report['compliance']:.6f}
+    Gesamtenergie:         {report['energy']:.6f}
+    """
+
+        st.download_button(
+            "Report herunterladen",
+            report_text,
+            file_name="report.txt"
+        )
+
+    else:
+        st.write("Kein Report verfügbar.")

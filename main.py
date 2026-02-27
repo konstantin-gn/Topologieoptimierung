@@ -620,3 +620,71 @@ class Simulation:
         ax.invert_yaxis()
         ax.set_title("Struktur")
         return fig
+    
+    # Erweiterung 1: Heatmap der Knotenenergien
+    def plot_energy_heatmap(self):
+        if self.u is None or self.remaining_elements is None:
+            return None
+
+        node_energy = self._compute_node_energy_subset(
+            self.u,
+            self.remaining_elements
+        )
+
+        energy_matrix = node_energy.reshape(
+            (self.grid.ny, self.grid.nx)
+        )
+
+        fig, ax = plt.subplots()
+
+        im = ax.imshow(
+            energy_matrix,
+            origin="upper",
+            cmap="jet"
+        )
+
+        plt.colorbar(im, ax=ax, label="Knotenenergie")
+
+        ax.set_title("Knotenenergie Heatmap")
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+
+        return fig
+    
+    # Erweiterung 2: Finaler Report mit Kennzahlen zur aktuellen Struktur
+    def compute_report(self):
+        if self.u is None or self.remaining_nodes is None:
+            return None
+
+        total_nodes = self.grid.n_nodes
+        remaining_nodes = len(self.remaining_nodes)
+
+        mass_frac = remaining_nodes / total_nodes * 100
+
+        # Verschiebungen berechnen
+        ux = self.u[0::2]
+        uy = self.u[1::2]
+
+        u_mag = np.sqrt(ux**2 + uy**2)
+
+        max_disp = np.max(u_mag)
+        mean_disp = np.mean(u_mag)
+
+        # Compliance
+        compliance = float(self.F.T @ self.u)
+
+        # Energie
+        K = self._assemble_K_for_elements(self.remaining_elements)
+        energy = 0.5 * float(self.u.T @ K @ self.u)
+
+        report = {
+            "total_nodes":       total_nodes,
+            "remaining_nodes":   remaining_nodes,
+            "mass_percent":      mass_frac,
+            "max_displacement":  max_disp,
+            "mean_displacement": mean_disp,
+            "compliance":        compliance,
+            "energy":            energy,
+        }
+
+        return report
