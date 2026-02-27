@@ -121,5 +121,9 @@ class DBConnector:
 
         doc_id = self.table.insert(record)
         return int(doc_id)
+    
+    # Löschen eines Runs per doc_id
+    def delete_by_doc_id(self, doc_id: int) -> None:
+        self.table.remove(doc_ids=[doc_id])
 
     

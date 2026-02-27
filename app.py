@@ -3,6 +3,7 @@ from main import Simulation
 from db_connector import DBConnector
 import io
 import matplotlib.pyplot as plt
+import pandas as pd
 
 st.title("2D Topologieoptimierung")
 
@@ -150,6 +151,31 @@ if st.sidebar.button("Laden"):
         except Exception as e:
             st.sidebar.error(f"Laden fehlgeschlagen: {e}")
 
+# Löschen (aktuellen Dropdown-Run löschen)
+
+if st.sidebar.button("Löschen"):
+    if selected == "(keine)":
+        st.sidebar.warning("Bitte einen Eintrag auswählen.")
+    else:
+        try:
+            doc_id = int(selected.split("|")[0].strip().lstrip("#"))
+
+            # löschen
+            db.delete_by_doc_id(doc_id)
+
+            # Falls der gelöschte Run gerade aktiv war -> State zurücksetzen
+            if st.session_state.loaded_doc_id == doc_id:
+                st.session_state.sim = None
+                st.session_state.ran = False
+                st.session_state.loaded_doc_id = None
+                st.session_state.current_label = None
+
+            st.sidebar.success(f"Run #{doc_id} gelöscht.")
+            st.rerun()
+
+        except Exception as e:
+            st.sidebar.error(f"Löschen fehlgeschlagen: {e}")
+
 # Simulation starten (neuer Run -> current_label reset)
 if st.button("Simulation starten"):
     sim = Simulation(nx, ny, mass_frac, load_ix, load_iy, Fx, Fy)
@@ -277,3 +303,20 @@ if st.session_state.ran and st.session_state.sim is not None:
 
     else:
         st.write("Kein Report verfügbar.")
+
+    # Kennzahlen über Iterationen plotten
+    st.subheader("Kennzahlen über Iterationen")
+
+    df = pd.DataFrame(sim.history).set_index("iter")
+
+    st.write("Verbleibende Masse")
+    st.line_chart(df["mass_frac"])
+
+    st.write("Max. Verformung (Indikator)")
+    st.line_chart(df["max_u"])
+
+    st.write("Compliance (Fᵀu)")
+    st.line_chart(df["compliance"])
+
+    st.write("Anzahl Knoten / Federn")
+    st.line_chart(df[["n_nodes", "n_springs"]])
