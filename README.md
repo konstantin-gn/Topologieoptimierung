@@ -97,14 +97,14 @@ Nach dem Start der Anwendung können die Strukturgröße sowie der Kraftangriffs
 
 ## Validierung am Beispiel des MBB-Balkens
 
-Zur Überprüfung und Validierung der Implementierung wurde das Benchmark-Problem des Messerschmitt–Bölkow–Blohm (MBB)-Balkens verwendet. Dieser Testfall ist als MBB Balken unter Gespeicherten Runs in der UI zufinden. 
+Zur Überprüfung und Validierung der Implementierung wurde das Benchmark-Problem des Messerschmitt–Bölkow–Blohm (MBB)-Balkens verwendet. Dieser Testfall ist als MBB Balken unter gespeicherten Runs in der UI zufinden. 
 
 MBB Balken: 
 ![Optimierte Struktur eines MBB-Balkens .](mbb_balken.png)
 
 ## Speicherung
 
-Simulationen werden bei ancklicken des Butten Speichern im Web-UI in der Datei
+Simulationen werden beim Anklicken des Button Speichern im Web-UI in der Datei
 
 ```
 db.json
