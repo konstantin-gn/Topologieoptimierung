@@ -39,6 +39,38 @@ project/
 └── README.md           # Projektdokumentation
 ```
 
+## UML-Klassendiagramm
+
+```mermaid
+classDiagram
+class Simulation {
+    +run()
+    +resume()
+    +plot_structure()
+    +plot_energy_heatmap()
+    +plot_load_paths()
+    +compute_report()
+    +to_record_dict()
+    +from_record_dict()
+}
+class MakeGrid {
+    +node_id()
+    +build_incidence_matrix()
+}
+class LinearSolver {
+    +solve()
+}
+class DBConnector {
+    +save_overwrite()
+    +save_new_unique()
+    +load_by_doc_id()
+    +delete_by_doc_id()
+}
+Simulation --> MakeGrid
+Simulation --> LinearSolver
+DBConnector --> Simulation
+```
+
 ## Voraussetzungen und Installation
 
 Für die Ausführung wird Python 3.10 oder neuer benötigt. Zusätzlich muss pip installiert sein. Die installierte Python-Version kann mit folgendem Befehl überprüft werden:
@@ -115,3 +147,17 @@ gespeichert. Diese Datei wird beim ersten Speichern automatisch erstellt.
 ## Technische Details
 
 Das zugrunde liegende Modell basiert auf einem Feder-Netzwerk mit globaler Steifigkeitsmatrix. Die Topologieoptimierung erfolgt durch iterative Entfernung von Knoten mit geringem Energiebeitrag unter Berücksichtigung von Konnektivität, Lastpfaden und mechanischer Stabilität. Zur Implementierung wurden die Bibliotheken NumPy, NetworkX, Matplotlib, Streamlit und TinyDB verwendet.
+
+### Erweiterungen (implementiert)
+
+- Interaktive Benutzeroberfläche (Streamlit) für:
+  - Änderung von Gittergröße, Kraftposition, Kraftvektor, Zielmasse in Echtzeit
+- Knotenenergie-Heatmap zur Visualisierung von tragenden Bereichen
+- Lastpfadvisualisierung (Kraftfluss) mit einstellbarer Dicke je nach Belastung
+- Speicherung, Laden und Löschen von Simulationen via TinyDB
+- Export von Bildern (PNG) und Textreports
+- Optimierungsverlauf: Masse, Compliance, Verschiebung, Anzahl Knoten und Elemente pro Iteration
+
+## Autoren
+
+Kevin Geisler, Konstantin Gneuß
