@@ -601,7 +601,7 @@ class Simulation:
             ax.plot(
                 [x1, x2],
                 [y1, y2],
-                color=plt.cm.jet(intensity),
+                color=plt.cm.jet(intensity),    # pylint: disable=no-member
                 linewidth=1 + 4 * intensity
             )
 
