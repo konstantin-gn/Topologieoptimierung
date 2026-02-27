@@ -6,24 +6,37 @@ Dieses Projekt implementiert eine interaktive 2D-Topologieoptimierung basierend 
 
 ## Funktionen
 
-- Interaktive Definition der Strukturgröße  
-- Frei definierbarer Kraftangriffspunkt und Kraftrichtung  
-- Iterative Topologieoptimierung durch Entfernen energiearmer Knoten  
-- Visualisierung der Originalstruktur, der Optimierungsschritte und der verformten Struktur  
-- Speichern und Laden von Simulationen über TinyDB  
-- Fortsetzen gespeicherter Optimierungen  
+- Interaktive Definition des rechteckigen Bauraums (nx x ny)
+- Frei definierbarer Kraftangriffspunkt und Kraftrichtung
+- Definition von Randbedingungen (Festlager / Loslager)
+- Iterative Topologieoptimierung durch Entfernen energiearmer Knoten
+- Mechanische Stabilitätsprüfung (Konnektivität & Lastpfade)
+- Visualisierung:
+	- Ausgangsstruktur
+	- Optimierungsschritte
+	- Verformte Struktur
+	- Iterationsverlauf relevanter physikalischer Größen
+- Speichern, Laden und Löschen von Simulationen über TinyDB
+- Fortsetzen gespeicherter Optimierungen
+- Validierung am Beispiel des MBB-Balkens  
 
 ## Projektstruktur
 
 ```
 project/
 │
-├── app.py             # Streamlit Benutzeroberfläche
-├── main.py            # Simulationslogik und FEM-Modell
-├── db_connector.py    # Datenbankverwaltung (TinyDB)
-├── requirements.txt   # Python-Abhängigkeiten
-├── db.json            # Datenbank (wird automatisch erstellt)
-└── README.md          # Diese Datei
+├── app.py              # Streamlit Benutzeroberfläche
+├── main.py             # Orchestrierung der Simulation
+├── simulation.py       # Kernlogik der Topologieoptimierung
+├── grid.py             # Erzeugung & Verwaltung der Struktur (Graph)
+├── solver.py           # Lösung des linearen Gleichungssystems (Ku = F)
+├── user_input.py       # Verarbeitung & Validierung von UI-Eingaben
+├── db_connector.py     # Datenbankanbindung (TinyDB)
+│
+├── db.json             # Datenbank (wird automatisch erzeugt)
+├── mbb_balken.png      # Referenzbild MBB-Testfall
+├── requirements.txt    # Python-Abhängigkeiten
+└── README.md           # Projektdokumentation
 ```
 
 ## Voraussetzungen und Installation
@@ -91,7 +104,7 @@ MBB Balken:
 
 ## Speicherung
 
-Simulationen werden automatisch in der Datei
+Simulationen werden bei ancklicken des Butten Speichern im Web-UI in der Datei
 
 ```
 db.json
