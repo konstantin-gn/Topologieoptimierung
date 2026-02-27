@@ -13,10 +13,8 @@ defaults = {
     "sim": None,
     "ran": False,
     "loaded_doc_id": None,
-
     # aktiver Run (wird beim Laden gesetzt)
     "current_label": None,
-
     # UI-Werte (Anfangswerte)
     "nx": 31,
     "ny": 10,
@@ -25,7 +23,6 @@ defaults = {
     "load_iy": 0,
     "Fx": 0.0,
     "Fy": 1.0,
-
     # temporärer Speicher für geladene Werte (damit Slider/Inputs korrekt springen)
     "pending_record": None,
 }
@@ -53,7 +50,7 @@ if st.session_state.pending_record is not None:
 
     st.session_state.pending_record = None
 
-# DB Connector initialisieren 
+# DB Connector initialisieren
 db = DBConnector("db.json")
 
 
@@ -188,7 +185,7 @@ if st.button("Simulation starten"):
     # neuer Run -> nicht an alten Namen gebunden
     st.session_state.current_label = None
 
-# Ausgabe/Plots der Simulationsergebnisse 
+# Ausgabe/Plots der Simulationsergebnisse
 if st.session_state.ran and st.session_state.sim is not None:
     sim = st.session_state.sim
 
@@ -197,14 +194,14 @@ if st.session_state.ran and st.session_state.sim is not None:
         st.caption(f"Aktive Simulation: **{st.session_state.current_label}**")
     else:
         st.caption("Aktive Simulation: (noch nicht gespeichert)")
-    
+
     all_nodes = set(range(sim.grid.n_nodes))
 
     # Originalstruktur (unverformt, alle Knoten)
     st.subheader("Originalstruktur")
     fig_original = sim.plot_structure(u=None, remaining_nodes=all_nodes, scale=1.0)
     ax = fig_original.axes[0]
-    ax.set_title("Ausgangsstruktur") 
+    ax.set_title("Ausgangsstruktur")
     st.pyplot(fig_original)
     plt.close(fig_original)
 
@@ -215,7 +212,9 @@ if st.session_state.ran and st.session_state.sim is not None:
         step = st.slider("Schritt wählen", 0, max_step, max_step, 1)
         remaining_nodes_step = sim.optim_steps[step]
         progress_pct = int((step / max_step) * 100)  # Prozentualer Fortschritt
-        fig_step = sim.plot_structure(u=None, remaining_nodes=remaining_nodes_step, scale=1.0)
+        fig_step = sim.plot_structure(
+            u=None, remaining_nodes=remaining_nodes_step, scale=1.0
+        )
         st.pyplot(fig_step)
         plt.close(fig_step)
 
@@ -231,7 +230,7 @@ if st.session_state.ran and st.session_state.sim is not None:
             label="Optimierte Struktur herunterladen (unverformt)",
             data=buf_opt,
             file_name="optimierte_struktur.png",
-            mime="image/png"
+            mime="image/png",
         )
         st.pyplot(fig_opt)
         plt.close(fig_opt)
@@ -239,8 +238,6 @@ if st.session_state.ran and st.session_state.sim is not None:
     else:
         st.write("Keine Optimierungsschritte vorhanden.")
 
-    # Verformte Struktur (wenn vorhanden)
-    st.subheader("Verformte Struktur")
     # Heatmap der Knoteneenergie
     st.subheader("Knotenenergie Heatmap")
 
@@ -251,6 +248,26 @@ if st.session_state.ran and st.session_state.sim is not None:
         plt.close(fig_heatmap)
     else:
         st.write("Keine Energie-Daten vorhanden.")
+
+    st.subheader("Lastpfade (Kraftfluss)")
+
+    # Slider für Filterstärke
+    threshold = st.slider(
+        "Lastpfad Filter (höher = nur starke Pfade sichtbar)", 0.0, 0.2, 0.05, 0.01
+    )
+
+    # Plot mit Threshold
+    fig_load = sim.plot_load_paths(threshold)
+
+    if fig_load is not None:
+        st.pyplot(fig_load)
+        plt.close(fig_load)
+    else:
+        st.write("Keine Lastpfade verfügbar.")
+
+    # Verformte Struktur (wenn vorhanden)
+    st.subheader("Verformte Struktur")
+
     scale = st.slider("Verformung skalieren", 0.01, 1.0, 0.1, 0.01)
 
     remaining_nodes_for_plot = getattr(sim, "remaining_nodes", None)
@@ -258,13 +275,11 @@ if st.session_state.ran and st.session_state.sim is not None:
         remaining_nodes_for_plot = all_nodes
 
     fig_deformed = sim.plot_structure(
-        u=getattr(sim, "u", None),
-        remaining_nodes=remaining_nodes_for_plot,
-        scale=scale
+        u=getattr(sim, "u", None), remaining_nodes=remaining_nodes_for_plot, scale=scale
     )
     st.pyplot(fig_deformed)
     plt.close(fig_deformed)
-    
+
     # Finaler Report
     st.subheader("Finaler Report")
 
@@ -272,7 +287,9 @@ if st.session_state.ran and st.session_state.sim is not None:
 
     if report is not None:
 
-        st.write(f"Verbleibende Knoten: {report['remaining_nodes']} / {report['total_nodes']}")
+        st.write(
+            f"Verbleibende Knoten: {report['remaining_nodes']} / {report['total_nodes']}"
+        )
         st.write(f"Verbleibende Masse: {report['mass_percent']:.1f} %")
 
         st.write(f"Maximale Verschiebung: {report['max_displacement']:.6f}")
@@ -295,11 +312,7 @@ if st.session_state.ran and st.session_state.sim is not None:
     Gesamtenergie:         {report['energy']:.6f}
     """
 
-        st.download_button(
-            "Report herunterladen",
-            report_text,
-            file_name="report.txt"
-        )
+        st.download_button("Report herunterladen", report_text, file_name="report.txt")
 
     else:
         st.write("Kein Report verfügbar.")

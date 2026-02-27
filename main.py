@@ -725,3 +725,63 @@ class Simulation:
         }
 
         return report
+    
+    # Erweiterung 3: Lastpfad-Visualisierung (UNVERFORMT)
+    def plot_load_paths(self, threshold=0.05):
+
+        if self.u is None or self.remaining_elements is None:
+            return None
+
+        fig, ax = plt.subplots()
+
+        energies = []
+
+        # Energie pro Element berechnen
+        for idx in self.remaining_elements:
+
+            i, j, K_elem, dofs = self.grid.elements[idx]
+
+            u_e = self.u[dofs]
+
+            energy = float(u_e.T @ K_elem @ u_e)
+
+            energies.append((i, j, energy))
+
+        if not energies:
+            return fig
+
+        max_energy = max(e for _, _, e in energies)
+
+        if max_energy == 0:
+            max_energy = 1.0
+
+        # Filter: nur starke Lastpfade anzeigen
+        threshold = threshold * max_energy
+
+        for i, j, energy in energies:
+
+            if energy < threshold:
+                continue
+
+            x1 = i % self.grid.nx
+            y1 = i // self.grid.nx
+            x2 = j % self.grid.nx
+            y2 = j // self.grid.nx
+
+            intensity = energy / max_energy
+
+            ax.plot(
+                [x1, x2],
+                [y1, y2],
+                color=plt.cm.jet(intensity),
+                linewidth=1 + 4 * intensity
+            )
+
+        ax.set_aspect("equal")
+        ax.invert_yaxis()
+
+        ax.set_title("Lastpfade (Kraftfluss)")
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+
+        return fig
