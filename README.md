@@ -81,6 +81,14 @@ http://localhost:8501
 
 Nach dem Start der Anwendung können die Strukturgröße sowie der Kraftangriffspunkt und die Kraftrichtung über die Benutzeroberfläche definiert werden. Durch Klicken auf „Simulation starten“ wird die Optimierung ausgeführt. Die Originalstruktur, die einzelnen Optimierungsschritte und die resultierende verformte Struktur werden grafisch dargestellt. Simulationen können gespeichert und zu einem späteren Zeitpunkt wieder geladen und fortgesetzt werden.
 
+
+## Validierung am Beispiel des MBB-Balkens
+
+Zur Überprüfung und Validierung der Implementierung wurde das Benchmark-Problem des Messerschmitt–Bölkow–Blohm (MBB)-Balkens verwendet. Dieser Testfall ist als MBB Balken unter Gespeicherten Runs in der UI zufinden. Desweiteren sind die Defaultsettings beim Starten der Simulation ebenfalls dem MBB-Testfall entsprechend. 
+
+MBB Balken: 
+![Optimierte Struktur eines MBB-Balkens .](mbb_balken.png)
+
 ## Speicherung
 
 Simulationen werden automatisch in der Datei

@@ -17,10 +17,10 @@ defaults = {
     "current_label": None,
 
     # UI-Werte (Anfangswerte)
-    "nx": 7,
-    "ny": 2,
+    "nx": 31,
+    "ny": 10,
     "mass_pct": 40,
-    "load_ix": 3,
+    "load_ix": 15,
     "load_iy": 0,
     "Fx": 0.0,
     "Fy": 1.0,
