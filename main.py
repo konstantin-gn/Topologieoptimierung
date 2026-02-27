@@ -27,7 +27,7 @@ class LinearSolver:
             K_mod[d, :] = 0.0
             K_mod[:, d] = 0.0
             K_mod[d, d] = 1.0
-            F_mod[d]    = 0.0
+            F_mod[d] = 0.0
 
         try:
             return np.linalg.solve(K_mod, F_mod) 
@@ -46,7 +46,7 @@ class MakeGrid:
     def __init__(self, nx: int, ny: int, k: float = 1.0):
         self.nx = nx    # Anzahl Knoten in x-Richtung
         self.ny = ny    # Anzahl Knoten in y-Richtung
-        self.k  = k  # Federsteifigkeit 
+        self.k = k  # Federsteifigkeit 
 
         self.n_nodes = nx * ny  # Gesamtzahl Knoten
         self.ndof = 2 * self.n_nodes 
