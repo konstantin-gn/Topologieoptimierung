@@ -3,6 +3,7 @@ from main import Simulation
 from db_connector import DBConnector
 import io
 import matplotlib.pyplot as plt
+import pandas as pd
 
 st.title("2D Topologieoptimierung")
 
@@ -253,3 +254,20 @@ if st.session_state.ran and st.session_state.sim is not None:
     )
     st.pyplot(fig_deformed)
     plt.close(fig_deformed)
+
+    # Kennzahlen über Iterationen plotten
+    st.subheader("Kennzahlen über Iterationen")
+
+    df = pd.DataFrame(sim.history).set_index("iter")
+
+    st.write("Verbleibende Masse")
+    st.line_chart(df["mass_frac"])
+
+    st.write("Max. Verformung (Indikator)")
+    st.line_chart(df["max_u"])
+
+    st.write("Compliance (Fᵀu)")
+    st.line_chart(df["compliance"])
+
+    st.write("Anzahl Knoten / Federn")
+    st.line_chart(df[["n_nodes", "n_springs"]])

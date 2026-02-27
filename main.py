@@ -193,6 +193,16 @@ class Simulation:
 
         self.optim_steps: list[set[int]] = []
 
+        # Historie für Plot 
+        self.history = {
+            "iter": [],
+            "mass_frac": [],
+            "max_u": [],
+            "compliance": [],
+            "n_nodes": [],
+            "n_springs": [],
+        }
+
         # Zustandsfelder für Save/Load/Fortsetzen
         self._initialized = False
         self.F: np.ndarray | None = None
@@ -286,6 +296,31 @@ class Simulation:
         # Optimierung ausführen
         self._optimization_loop(max_tries=50, cond_max=1e8, max_iters=None)
 
+    
+    # Speichert Kennzahlen der aktuellen Iteration in self.history (für Plot)
+    def _log_iteration(self, it: int, K, F, u) -> None:
+        
+        # Anteil verbleibender Knoten 
+        n_total = self.grid.n_nodes
+        n_nodes = len(self.remaining_nodes) if self.remaining_nodes is not None else n_total
+        mass_frac = n_nodes / max(1, n_total)
+
+        # Max. Verformung
+        max_u = float(np.linalg.norm(u))
+
+        # Compliance (Weichheit)
+        compliance = float(F @ u)
+
+        # Federn: Anzahl verbleibender Elemente 
+        n_springs = len(self.remaining_elements) if self.remaining_elements is not None else len(self.grid.elements)
+
+        # Log speichern 
+        self.history["iter"].append(it)
+        self.history["mass_frac"].append(mass_frac)
+        self.history["max_u"].append(max_u)
+        self.history["compliance"].append(compliance)
+        self.history["n_nodes"].append(n_nodes)
+        self.history["n_springs"].append(n_springs)
 
     # Fortsetzen
     def resume(self, max_iters: int | None = None) -> None:
@@ -336,6 +371,8 @@ class Simulation:
                 break
 
             self.u = u_iter  # für Plot
+
+            self._log_iteration(iters, K_iter, self.F, u_iter)  # Kennzahlen loggen
 
             # Energien für aktuelle Struktur
             node_energy = self._compute_node_energy_subset(u_iter, self.remaining_elements)
