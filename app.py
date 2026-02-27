@@ -5,6 +5,7 @@ import io
 import matplotlib.pyplot as plt
 import pandas as pd
 
+
 # Hilfsfunktion: Knotennummer → Rasterkoordinaten
 def get_coords(grid, node_idx):
     x = node_idx % grid.nx

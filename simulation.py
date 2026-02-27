@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 from grid import MakeGrid
 from solver import LinearSolver
 
+
 # Simulation-Objekt mit Run- und Resume-Funktion sowie Save/Load für DB
 class Simulation:
 
     # Initialisierung mit Parametern
     def __init__(self, nx, ny, target_mass_frac, load_ix, load_iy, Fx, Fy):
-        self.grid = MakeGrid(nx, ny)
+        self.grid   = MakeGrid(nx, ny)
         self.solver = LinearSolver()
 
         self.target_mass_frac = float(target_mass_frac)
@@ -341,9 +342,9 @@ class Simulation:
         sim.initialize_state()
 
         # Zustand setzen
-        sim.remaining_nodes = set(record.get("remaining_nodes", []))
+        sim.remaining_nodes    = set(record.get("remaining_nodes", []))
         sim.remaining_elements = set(record.get("remaining_elements", []))
-        sim.optim_steps = [set(step) for step in record.get("optim_steps", [])]
+        sim.optim_steps        = [set(step) for step in record.get("optim_steps", [])]
 
         u_list = record.get("u", None)
         if u_list is not None:
@@ -532,7 +533,7 @@ class Simulation:
 
         u_mag = np.sqrt(ux**2 + uy**2)
 
-        max_disp = np.max(u_mag)
+        max_disp  = np.max(u_mag)
         mean_disp = np.mean(u_mag)
 
         # Compliance

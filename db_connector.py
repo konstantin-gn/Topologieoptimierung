@@ -3,12 +3,13 @@ from datetime import datetime
 from typing import Any, Optional
 from tinydb import TinyDB, Query
 
+
 # Kapselt die DB-Logik mit TinyDB, damit der Hauptcode in app.py übersichtlich bleibt.
 class DBConnector:
 
     def __init__(self, db_path: str = "db.json", table_name: str = "simulations"):
         # Öffnet die DB-Datei
-        self.db = TinyDB(db_path)
+        self.db    = TinyDB(db_path)
         self.table = self.db.table(table_name)
 
     # Hilfsmethode: Zeitstempel für created_at/updated_at im ISO-Format
@@ -125,5 +126,3 @@ class DBConnector:
     # Löschen eines Runs per doc_id
     def delete_by_doc_id(self, doc_id: int) -> None:
         self.table.remove(doc_ids=[doc_id])
-
-    

@@ -26,7 +26,7 @@ class LinearSolver:
             K_mod[d, :] = 0.0
             K_mod[:, d] = 0.0
             K_mod[d, d] = 1.0
-            F_mod[d] = 0.0
+            F_mod[d]    = 0.0
 
         try:
             return np.linalg.solve(K_mod, F_mod) 
