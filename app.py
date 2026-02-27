@@ -5,8 +5,31 @@ import io
 import matplotlib.pyplot as plt
 import pandas as pd
 
-st.title("2D Topologieoptimierung")
+# Hilfsfunktion: Knotennummer → Rasterkoordinaten
+def get_coords(grid, node_idx):
+    x = node_idx % grid.nx
+    y = node_idx // grid.nx
+    return x, y
 
+def plot_markers_and_force(ax, sim, offset=0.25, force_offset=-0.5):
+    # FESTLAGER
+    x, y = get_coords(sim.grid, sim.node_fixed)
+    ax.plot(x, y + offset, marker='s', color='blue', markersize=10, label='Festlager')
+
+    # LOSLAGER
+    x, y = get_coords(sim.grid, sim.node_lose)
+    ax.plot(x, y + offset, marker='^', color='green', markersize=10, label='Loslager')
+
+    # ANGEGREIFTE KRAFT
+    x, y = get_coords(sim.grid, sim.load_node)
+    ax.arrow(x, y + force_offset, sim.Fx*0.1, sim.Fy*0.1, 
+             head_width=0.3, head_length=0.6, fc='red', ec='red', label='Kraft')
+
+    # Legende außerhalb
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+
+st.title("2D Topologieoptimierung")
 
 # Session State Defaults und Initialisierung
 defaults = {
@@ -149,7 +172,6 @@ if st.sidebar.button("Laden"):
             st.sidebar.error(f"Laden fehlgeschlagen: {e}")
 
 # Löschen (aktuellen Dropdown-Run löschen)
-
 if st.sidebar.button("Löschen"):
     if selected == "(keine)":
         st.sidebar.warning("Bitte einen Eintrag auswählen.")
@@ -199,9 +221,12 @@ if st.session_state.ran and st.session_state.sim is not None:
 
     # Originalstruktur (unverformt, alle Knoten)
     st.subheader("Originalstruktur")
+    
+    # Originalstruktur inkl. Lager & Kraft
     fig_original = sim.plot_structure(u=None, remaining_nodes=all_nodes, scale=1.0)
     ax = fig_original.axes[0]
     ax.set_title("Ausgangsstruktur")
+    plot_markers_and_force(ax, sim)
     st.pyplot(fig_original)
     plt.close(fig_original)
 
@@ -211,10 +236,11 @@ if st.session_state.ran and st.session_state.sim is not None:
         max_step = len(sim.optim_steps) - 1
         step = st.slider("Schritt wählen", 0, max_step, max_step, 1)
         remaining_nodes_step = sim.optim_steps[step]
-        progress_pct = int((step / max_step) * 100)  # Prozentualer Fortschritt
-        fig_step = sim.plot_structure(
-            u=None, remaining_nodes=remaining_nodes_step, scale=1.0
-        )
+        progress_pct = int((step / max_step) * 100)
+
+        fig_step = sim.plot_structure(u=None, remaining_nodes=remaining_nodes_step, scale=1.0)
+        ax_step = fig_step.axes[0]
+        plot_markers_and_force(ax_step, sim)
         st.pyplot(fig_step)
         plt.close(fig_step)
 
@@ -222,7 +248,8 @@ if st.session_state.ran and st.session_state.sim is not None:
         final_nodes = sim.optim_steps[-1]
         fig_opt = sim.plot_structure(u=None, remaining_nodes=final_nodes, scale=1.0)
         ax_opt = fig_opt.axes[0]
-        ax_opt.set_title("Optimierte Struktur (100 %)")  # Titel nur hier
+        ax_opt.set_title("Optimierte Struktur (100 %)")
+        plot_markers_and_force(ax_opt, sim)
         buf_opt = io.BytesIO()
         fig_opt.savefig(buf_opt, format="png", dpi=300, bbox_inches="tight")
         buf_opt.seek(0)
