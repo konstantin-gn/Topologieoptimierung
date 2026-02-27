@@ -6,7 +6,7 @@ Dieses Projekt implementiert eine interaktive 2D-Topologieoptimierung basierend 
 
 ## Funktionen
 
-- Interaktive Definition des rechteckigen Bauraums (nx x ny)
+- Interaktive Definition des rechteckigen Bauraums (nx * ny)
 - Frei definierbarer Kraftangriffspunkt und Kraftrichtung
 - Definition von Randbedingungen (Festlager / Loslager)
 - Iterative Topologieoptimierung durch Entfernen energiearmer Knoten
